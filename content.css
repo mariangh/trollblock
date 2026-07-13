@@ -38,6 +38,64 @@
 #fbcas-selected-list li { margin: 5px 0; overflow-wrap: anywhere; }
 .fbcas-empty { color: #65676b; font-style: italic; }
 
+#fbcas-dictionary {
+  margin: 10px 0 12px;
+  padding: 9px;
+  border: 1px solid #d8dadf;
+  border-radius: 8px;
+}
+#fbcas-dictionary summary { font-weight: 700; cursor: pointer; }
+#fbcas-keyword-form { display: flex; gap: 5px; margin-top: 9px; }
+#fbcas-keyword-input {
+  min-width: 0;
+  flex: 1;
+  padding: 6px 7px;
+  border: 1px solid #bcc0c4;
+  border-radius: 6px;
+}
+#fbcas-keyword-form button {
+  padding: 6px 8px;
+  color: #fff;
+  background: #0866ff;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#fbcas-keyword-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.fbcas-keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  padding: 3px 5px 3px 7px;
+  overflow-wrap: anywhere;
+  background: #f0f2f5;
+  border-radius: 10px;
+  font-size: 11px;
+}
+.fbcas-keyword-chip button {
+  padding: 0 2px;
+  color: #65676b;
+  background: transparent;
+  border: 0;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Clasa este aplicată direct linkului autorului comentariului potrivit. */
+a.fbcas-keyword-match,
+a.fbcas-keyword-match:visited,
+a.fbcas-keyword-match > * {
+  color: #d93025 !important;
+  text-decoration-color: #d93025 !important;
+}
+a.fbcas-keyword-match::after {
+  content: " ⚑";
+  color: #d93025;
+  font-size: 11px;
+}
+
 #fbcas-prepare {
   width: 100%;
   padding: 9px 12px;
@@ -68,10 +126,12 @@
 .fbcas-errors li { margin-top: 4px; overflow-wrap: anywhere; }
 
 .fbcas-author-toggle {
+  position: absolute !important;
+  z-index: 2;
   display: inline-flex !important;
   align-items: center;
   gap: 3px;
-  margin-inline-start: 6px;
+  margin: 0;
   padding: 2px 5px;
   color: #65676b !important;
   background: #f0f2f5;
@@ -81,3 +141,7 @@
   vertical-align: middle;
 }
 .fbcas-author-toggle input { width: 14px; height: 14px; margin: 0; accent-color: #0866ff; }
+
+.fbcas-comment-host {
+  position: relative !important;
+}

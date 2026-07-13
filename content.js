@@ -6,7 +6,9 @@
   window.__fbCommentAuthorSelector = true;
 
   const ATTR = "data-fbcas-enhanced";
+  const KEYWORDS_STORAGE_KEY = "fbcasKeywords";
   const selectedAuthors = new Map();
+  let keywords = [];
   let scanScheduled = false;
   let blockingStarted = false;
   let automationMode = false;
@@ -36,6 +38,53 @@
   /** Produce o cheie stabilă; URL-ul profilului este preferat, numele este fallback. */
   function authorKey(name, profileUrl) {
     return profileUrl || name.trim().toLocaleLowerCase("ro-RO");
+  }
+
+  function normalizeForMatching(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("ro-RO")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function extractCommentText(comment, author) {
+    const textContainers = [...comment.querySelectorAll('[data-ad-preview="message"], [dir="auto"]')]
+      .filter((element) =>
+        !author.anchor.contains(element)
+        && !element.contains(author.anchor)
+        && !element.closest(".fbcas-author-toggle, #fbcas-panel")
+      );
+    const text = textContainers.length
+      ? textContainers.map((element) => element.textContent || "").join(" ")
+      : (comment.textContent || "").replace(author.name, "");
+    return normalizeForMatching(text);
+  }
+
+  function updateKeywordHighlight(comment, author) {
+    author.anchor.classList.remove("fbcas-keyword-match");
+    author.anchor.removeAttribute("data-fbcas-keywords");
+    if (!keywords.length) return;
+
+    const commentText = extractCommentText(comment, author);
+    const matches = keywords.filter((keyword) => commentText.includes(normalizeForMatching(keyword)));
+    if (!matches.length) return;
+    author.anchor.classList.add("fbcas-keyword-match");
+    author.anchor.setAttribute("data-fbcas-keywords", matches.join(", "));
+  }
+
+  function positionAuthorControl(comment, author, label) {
+    if (getComputedStyle(comment).position === "static") {
+      comment.classList.add("fbcas-comment-host");
+    }
+    const commentRect = comment.getBoundingClientRect();
+    const authorRect = author.anchor.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    const top = authorRect.top - commentRect.top + Math.max(0, (authorRect.height - labelRect.height) / 2);
+    const left = authorRect.right - commentRect.left + 6;
+    label.style.top = `${Math.round(top)}px`;
+    label.style.left = `${Math.round(left)}px`;
   }
 
   function looksLikeProfileLink(anchor) {
@@ -106,10 +155,14 @@
   function addAuthorControl(comment) {
     const author = findAuthor(comment);
     if (!author) return;
+    updateKeywordHighlight(comment, author);
 
     const previousKey = comment.getAttribute(ATTR);
     const existingToggle = comment.querySelector(":scope .fbcas-author-toggle");
-    if (previousKey === author.key && existingToggle) return;
+    if (previousKey === author.key && existingToggle) {
+      positionAuthorControl(comment, author, existingToggle);
+      return;
+    }
 
     // React reciclează containerele comentariilor. Eliminăm controlul vechi dacă
     // autorul sau conținutul containerului s-a schimbat între două randări.
@@ -129,8 +182,18 @@
     caption.textContent = "Selectează";
     label.append(checkbox, caption);
 
-    // Inserarea lângă link este independentă de layout-ul intern al comentariului.
-    author.anchor.insertAdjacentElement("afterend", label);
+    // Facebook folosește event delegation pentru cardul de preview al profilului.
+    // Oprim evenimentele controlului extensiei înainte să ajungă la handler-ele sale,
+    // fără preventDefault, astfel încât checkbox-ul continuă să funcționeze normal.
+    ["click", "mousedown", "mouseup", "pointerdown", "pointerup", "mouseover", "pointerover"]
+      .forEach((eventName) => {
+        label.addEventListener(eventName, (event) => event.stopPropagation());
+      });
+
+    // Controlul este copil direct al comentariului, complet în afara wrapperului
+    // autorului care declanșează hovercard-ul Facebook.
+    comment.append(label);
+    positionAuthorControl(comment, author, label);
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) selectedAuthors.set(author.key, { name: author.name, profileUrl: author.profileUrl });
       else selectedAuthors.delete(author.key);
@@ -174,6 +237,55 @@
     });
   }
 
+  function renderKeywords() {
+    const container = document.querySelector("#fbcas-keyword-list");
+    const count = document.querySelector("#fbcas-keyword-count");
+    if (!container || !count) return;
+    count.textContent = String(keywords.length);
+    container.replaceChildren();
+
+    keywords.forEach((keyword) => {
+      const chip = document.createElement("span");
+      chip.className = "fbcas-keyword-chip";
+      chip.append(document.createTextNode(keyword));
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.textContent = "×";
+      removeButton.title = `Șterge ${keyword}`;
+      removeButton.setAttribute("aria-label", `Șterge cuvântul cheie ${keyword}`);
+      removeButton.addEventListener("click", async () => {
+        keywords = keywords.filter((entry) => normalizeForMatching(entry) !== normalizeForMatching(keyword));
+        await chrome.storage.local.set({ [KEYWORDS_STORAGE_KEY]: keywords });
+        renderKeywords();
+        scheduleScan();
+      });
+      chip.append(removeButton);
+      container.append(chip);
+    });
+  }
+
+  async function addKeywords(rawValue) {
+    const additions = rawValue.split(/[,;\n]+/).map((entry) => entry.trim()).filter(Boolean);
+    const known = new Set(keywords.map(normalizeForMatching));
+    additions.forEach((entry) => {
+      const normalized = normalizeForMatching(entry);
+      if (normalized && !known.has(normalized)) {
+        keywords.push(entry);
+        known.add(normalized);
+      }
+    });
+    await chrome.storage.local.set({ [KEYWORDS_STORAGE_KEY]: keywords });
+    renderKeywords();
+    scheduleScan();
+  }
+
+  async function loadKeywords() {
+    const stored = await chrome.storage.local.get({ [KEYWORDS_STORAGE_KEY]: [] });
+    keywords = Array.isArray(stored[KEYWORDS_STORAGE_KEY]) ? stored[KEYWORDS_STORAGE_KEY] : [];
+    renderKeywords();
+    scheduleScan();
+  }
+
   function createPanel() {
     if (automationMode || document.querySelector("#fbcas-panel")) return;
     const panel = document.createElement("aside");
@@ -186,6 +298,14 @@
       </div>
       <div id="fbcas-panel-body">
         <ul id="fbcas-selected-list"></ul>
+        <details id="fbcas-dictionary">
+          <summary>Dicționar cuvinte cheie (<span id="fbcas-keyword-count">0</span>)</summary>
+          <form id="fbcas-keyword-form">
+            <input id="fbcas-keyword-input" type="text" placeholder="cuvânt sau expresie" autocomplete="off">
+            <button type="submit">Adaugă</button>
+          </form>
+          <div id="fbcas-keyword-list" aria-label="Cuvinte cheie"></div>
+        </details>
         <button id="fbcas-prepare" type="button">Pregătește blocarea</button>
         <button id="fbcas-cancel" type="button" hidden>Anulează</button>
         <div id="fbcas-status" role="status"></div>
@@ -195,11 +315,19 @@
     const actionButton = panel.querySelector("#fbcas-prepare");
     const cancelButton = panel.querySelector("#fbcas-cancel");
     const toggleButton = panel.querySelector("#fbcas-toggle-panel");
+    const keywordForm = panel.querySelector("#fbcas-keyword-form");
+    const keywordInput = panel.querySelector("#fbcas-keyword-input");
     toggleButton.addEventListener("click", () => {
       const minimized = panel.classList.toggle("fbcas-minimized");
       toggleButton.textContent = minimized ? "+" : "−";
       toggleButton.setAttribute("aria-label", minimized ? "Maximizează panoul" : "Minimizează panoul");
       toggleButton.title = minimized ? "Maximizează" : "Minimizează";
+    });
+    keywordForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await addKeywords(keywordInput.value);
+      keywordInput.value = "";
+      keywordInput.focus();
     });
     actionButton.addEventListener("click", async () => {
       const count = selectedAuthors.size;
@@ -243,6 +371,7 @@
       cancelButton.disabled = true;
     });
     renderPanel();
+    renderKeywords();
   }
 
   function updateBlockingStatus(status) {
@@ -398,6 +527,15 @@
   const observer = new MutationObserver(scheduleScan);
   observer.observe(document.documentElement, { childList: true, subtree: true });
   addEventListener("scroll", scheduleScan, { passive: true });
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes[KEYWORDS_STORAGE_KEY]) return;
+    keywords = Array.isArray(changes[KEYWORDS_STORAGE_KEY].newValue)
+      ? changes[KEYWORDS_STORAGE_KEY].newValue
+      : [];
+    renderKeywords();
+    scheduleScan();
+  });
+  loadKeywords();
   scheduleScan();
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

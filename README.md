@@ -1,6 +1,6 @@
 # Facebook Comment Author Selector
 
-Extensie Chrome Manifest V3 care detectează comentariile vizibile pe Facebook, permite selectarea autorilor și îi poate bloca după o confirmare explicită. Versiunea curentă este `0.5.0`.
+Extensie Chrome Manifest V3 care detectează comentariile vizibile pe Facebook, permite selectarea autorilor și îi poate bloca după o confirmare explicită. Versiunea curentă este `0.6.3`.
 
 ## Funcționalități
 
@@ -13,11 +13,14 @@ Extensie Chrome Manifest V3 care detectează comentariile vizibile pe Facebook, 
 - elimină din selecție și debifează autorii procesați cu succes;
 - reîncarcă automat fila Facebook după blocări reușite, pentru actualizarea comentariilor;
 - detectează și comentariile încărcate prin „Vezi mai multe”, inclusiv containerele reciclate de Facebook;
+- include un dicționar local de cuvinte și expresii cheie;
+- marchează cu roșu autorii comentariilor care conțin termeni din dicționar;
+- împiedică deschiderea preview-ului de profil la folosirea controlului „Selectează”;
 - procesează profilurile într-o fereastră auxiliară nefocusată și afișează progresul;
 - permite anularea operației între autori;
 - nu folosește servicii terțe, analytics sau stocare persistentă.
 
-Selecția este păstrată doar în memoria filei curente și dispare la reîncărcarea paginii. Starea temporară a operației este păstrată în `chrome.storage.session` și dispare când se închide sesiunea Chrome. Datele sunt folosite numai pentru interacțiunea cu paginile Facebook declarate în `manifest.json`; nu sunt trimise către servicii terțe.
+Selecția este păstrată doar în memoria filei curente și dispare la reîncărcarea paginii. Dicționarul este păstrat local în `chrome.storage.local`. Starea temporară a operației este păstrată în `chrome.storage.session` și dispare când se închide sesiunea Chrome. Datele sunt folosite numai pentru interacțiunea cu paginile Facebook declarate în `manifest.json`; nu sunt trimise către servicii terțe.
 
 ## Instalare prin `chrome://extensions`
 
@@ -32,9 +35,10 @@ Selecția este păstrată doar în memoria filei curente și dispare la reîncă
 1. Derulează până la comentariile dorite; extensia procesează elementele vizibile încărcate dinamic.
 2. Bifează „Selectează” lângă autorii doriți.
 3. Verifică lista în panoul din dreapta-jos sau apăsând pictograma extensiei.
-4. Apasă **Pregătește blocarea** și verifică avertismentul.
-5. Apasă **Confirmă blocarea** pentru a începe operația efectivă. Autorii sunt procesați secvențial într-o fereastră auxiliară nefocusată; fila principală își păstrează focusul.
-6. Urmărește rezultatul în panou. Dacă Facebook nu expune meniul sau dialogul așteptat, panoul afișează eroarea pentru autorul respectiv și operația continuă.
+4. Deschide **Dicționar cuvinte cheie** pentru a adăuga termeni separați prin virgulă, punct și virgulă sau Enter. Potrivirea ignoră majusculele și diacriticele.
+5. Apasă **Pregătește blocarea** și verifică avertismentul.
+6. Apasă **Confirmă blocarea** pentru a începe operația efectivă. Autorii sunt procesați secvențial într-o fereastră auxiliară nefocusată; fila principală își păstrează focusul.
+7. Urmărește rezultatul în panou. Dacă Facebook nu expune meniul sau dialogul așteptat, panoul afișează eroarea pentru autorul respectiv și operația continuă.
 
 > **Atenție:** blocarea este o modificare reală a contului Facebook. Interfața Facebook se poate schimba, iar extensia nu încearcă să ocolească verificări, confirmări suplimentare sau restricții ale platformei.
 
