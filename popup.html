@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Autori selectați</title>
+    <style>
+      body { width: 300px; margin: 0; padding: 16px; color: #1c1e21; font: 14px/1.45 Arial, sans-serif; }
+      h1 { margin: 0 0 10px; font-size: 18px; }
+      ul { max-height: 260px; margin: 0; padding-left: 20px; overflow: auto; }
+      li { margin: 5px 0; overflow-wrap: anywhere; }
+      #message { margin: 0; color: #65676b; }
+      .privacy { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid #ddd; color: #65676b; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Autori selectați</h1>
+    <p id="message">Se încarcă…</p>
+    <ul id="authors" hidden></ul>
+    <p class="privacy">Datele sunt folosite local doar pentru a acționa în interfața Facebook și nu sunt trimise către servicii terțe.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>
