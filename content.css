@@ -125,6 +125,18 @@ a.fbcas-keyword-match::after {
 .fbcas-errors { margin: 7px 0 0; padding-left: 17px; color: #a50e0e; }
 .fbcas-errors li { margin-top: 4px; overflow-wrap: anywhere; }
 
+#fbcas-action-dock {
+  position: sticky;
+  bottom: -16px;
+  z-index: 5;
+  margin: 0 -16px -16px;
+  padding: 14px 16px 16px;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 72%), rgb(255 255 255 / 96%) 35%);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgb(216 218 223 / 70%);
+}
+
 .fbcas-author-toggle {
   position: absolute !important;
   z-index: 2;

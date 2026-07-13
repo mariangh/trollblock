@@ -302,11 +302,12 @@
     if (automationMode || document.querySelector("#fbcas-panel")) return;
     const panel = document.createElement("aside");
     panel.id = "fbcas-panel";
+    panel.className = "fbcas-minimized";
     panel.setAttribute("aria-label", "Autori selectați");
     panel.innerHTML = `
       <div class="fbcas-header">
         <div class="fbcas-heading">Autori selectați <span id="fbcas-count">0</span></div>
-        <button id="fbcas-toggle-panel" type="button" aria-label="Minimizează panoul" title="Minimizează">−</button>
+        <button id="fbcas-toggle-panel" type="button" aria-label="Maximizează panoul" title="Maximizează">+</button>
       </div>
       <div id="fbcas-panel-body">
         <ul id="fbcas-selected-list"></ul>
@@ -318,9 +319,11 @@
           </form>
           <div id="fbcas-keyword-list" aria-label="Cuvinte cheie"></div>
         </details>
-        <button id="fbcas-prepare" type="button">Pregătește blocarea</button>
-        <button id="fbcas-cancel" type="button" hidden>Anulează</button>
         <div id="fbcas-status" role="status"></div>
+        <div id="fbcas-action-dock">
+          <button id="fbcas-prepare" type="button">Pregătește blocarea</button>
+          <button id="fbcas-cancel" type="button" hidden>Anulează</button>
+        </div>
       </div>
     `;
     document.body.append(panel);
