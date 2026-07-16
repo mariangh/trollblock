@@ -1,6 +1,6 @@
 # TrollBlock
 
-TrollBlock is a Chrome Manifest V3 extension that detects visible Facebook comments, lets you select comment authors, and can block selected profiles from an in-page panel. The current version is `0.6.17`.
+TrollBlock is a Chrome Manifest V3 extension that detects visible Facebook comments, lets you select comment authors, and can block selected profiles from an in-page panel. The current version is `0.6.18`.
 
 This extension is not affiliated with, endorsed by, sponsored by, or connected to Meta Platforms, Inc. or Facebook.
 
@@ -18,7 +18,7 @@ This extension is not affiliated with, endorsed by, sponsored by, or connected t
 - detects comments loaded through "See more", including recycled Facebook containers;
 - includes a synced keyword and phrase dictionary;
 - includes an expandable settings section with the `Refresh page` option;
-- highlights comment authors in red when their comment matches a dictionary term;
+- adds a compact badge with the matched keyword next to dictionary-matched authors;
 - automatically selects dictionary-matched authors, while still allowing manual unselecting;
 - keeps blocking buttons in a sticky semi-transparent dock at the bottom of the panel;
 - starts with the panel minimized when a Facebook page loads;

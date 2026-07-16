@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TrollBlock",
-  "version": "0.6.17",
+  "version": "0.6.18",
   "description": "Select visible Facebook comment authors and block selected profiles from an in-page panel.",
   "permissions": ["activeTab", "tabs", "storage"],
   "icons": {

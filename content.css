@@ -138,16 +138,25 @@
 }
 
 /* The class is applied directly to the matching comment author link. */
-a.fbcas-keyword-match,
-a.fbcas-keyword-match:visited,
-a.fbcas-keyword-match > * {
-  color: #d93025 !important;
-  text-decoration-color: #d93025 !important;
-}
 a.fbcas-keyword-match::after {
-  content: " ⚑";
-  color: #d93025;
-  font-size: 11px;
+  content: attr(data-fbcas-keywords);
+  display: inline-block;
+  max-width: 140px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  overflow: hidden;
+  color: #7a160f;
+  background: #fff2b8;
+  border: 1px solid #d93025;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-decoration: none !important;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 #fbcas-prepare {
