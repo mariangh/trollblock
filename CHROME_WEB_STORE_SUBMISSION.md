@@ -123,7 +123,7 @@ https://github.com/mariangh/trollblock/blob/main/PRIVACY_POLICY.md
 4. Select one or more authors. The bottom-right panel and extension popup show the selected author count/list.
 5. Optionally add a keyword in "Keyword dictionary" and reload or scroll comments to see matching authors highlighted and selected.
 6. Expand "Settings" and toggle "Refresh page" to control whether the source Facebook tab reloads after successful blocking.
-7. Use "Prepare blocking" followed by "Confirm blocking", or minimize the panel and use the small "B" button next to "+", to start the same blocking flow.
+7. Use "Block", or minimize the panel and use the small "B" button next to "+", to start the same blocking flow.
 8. The extension opens selected Facebook profiles in a helper window and uses Facebook's own Block/Confirm UI. Use a test account/profile if completing the block action is required.
 9. The panel reports progress and any errors. The source Facebook tab reloads after successful blocking only when "Refresh page" is enabled.
 

@@ -18,7 +18,6 @@
   let keywords = [];
   let settings = { ...DEFAULT_SETTINGS };
   let scanScheduled = false;
-  let blockingStarted = false;
   let blockingRunning = false;
   let blockingProcessed = 0;
   let blockingTotal = 0;
@@ -423,12 +422,10 @@
     const hasEligibleAuthors = Boolean(
       (queueMode ? queueableSelectedAuthors() : blockableSelectedAuthors()).length
     );
-    quickBlockButton.disabled = queueMode
-      ? !hasEligibleAuthors
-      : blockingStarted || !hasEligibleAuthors;
+    quickBlockButton.disabled = !hasEligibleAuthors;
     quickBlockButton.setAttribute(
       "aria-label",
-      queueMode ? "Add selected authors to the blocking queue" : "Start blocking without confirmation"
+      queueMode ? "Add selected authors to the blocking queue" : "Block selected authors"
     );
     quickBlockButton.title = queueMode ? "Add to queue" : "Block now";
   }
@@ -456,11 +453,10 @@
     }
   }
 
-  function resetBlockingConfirmation(panel) {
+  function resetBlockingActionButton(panel) {
     const actionButton = panel.querySelector("#fbcas-prepare");
     if (!actionButton) return;
-    blockingStarted = false;
-    actionButton.textContent = "Prepare blocking";
+    actionButton.textContent = "Block";
     actionButton.classList.remove("fbcas-danger");
   }
 
@@ -480,8 +476,7 @@
     return authorsWithProfiles;
   }
 
-  async function startBlocking(panel, authorsWithProfiles, options = {}) {
-    const { keepConfirmationOnError = false } = options;
+  async function startBlocking(panel, authorsWithProfiles) {
     const status = panel.querySelector("#fbcas-status");
 
     blockingQueuedProfileUrls = new Set();
@@ -505,7 +500,7 @@
       blockingQueuedProfileUrls.clear();
       updatePanelHeading(panel);
       setBlockingControls(panel, false);
-      if (!keepConfirmationOnError) resetBlockingConfirmation(panel);
+      resetBlockingActionButton(panel);
       updateQuickBlockButton();
       status.textContent = friendlyErrorMessage(error);
     }
@@ -552,7 +547,7 @@
       <div class="fbcas-header">
         <div class="fbcas-heading"><span id="fbcas-heading-label">${PANEL_TITLE}</span> <span id="fbcas-count">0</span></div>
         <div class="fbcas-header-actions">
-          <button id="fbcas-quick-block" type="button" aria-label="Start blocking without confirmation" title="Block now">B</button>
+          <button id="fbcas-quick-block" type="button" aria-label="Block selected authors" title="Block now">B</button>
           <button id="fbcas-toggle-panel" type="button" aria-label="Maximize panel" title="Maximize">+</button>
         </div>
       </div>
@@ -575,7 +570,7 @@
         </details>
         <div id="fbcas-status" role="status"></div>
         <div id="fbcas-action-dock">
-          <button id="fbcas-prepare" type="button">Prepare blocking</button>
+          <button id="fbcas-prepare" type="button">Block</button>
           <button id="fbcas-cancel" type="button" hidden>Cancel</button>
         </div>
       </div>
@@ -623,18 +618,7 @@
 
       const authorsWithProfiles = validateBlockingSelection(panel);
       if (!authorsWithProfiles) return;
-      const status = panel.querySelector("#fbcas-status");
-
-      if (!blockingStarted) {
-        blockingStarted = true;
-        actionButton.textContent = `Confirm blocking (${authorsWithProfiles.length})`;
-        actionButton.classList.add("fbcas-danger");
-        quickBlockButton.disabled = true;
-        status.textContent = "Confirm to actually block these authors. This changes your Facebook block list.";
-        return;
-      }
-
-      await startBlocking(panel, authorsWithProfiles, { keepConfirmationOnError: true });
+      await startBlocking(panel, authorsWithProfiles);
     });
     quickBlockButton.addEventListener("click", async () => {
       if (blockingRunning) {
@@ -678,24 +662,28 @@
     blockingProcessed = Math.min(statusProcessed + (done ? 0 : 1), blockingTotal);
     if (!done) {
       blockingRunning = true;
-      blockingStarted = false;
       updatePanelHeading(panel);
       setBlockingControls(panel, true);
     }
 
     const failures = Array.isArray(status.results)
-      ? status.results.filter((result) => !result.ok)
+      ? status.results.filter((result) => !result.ok && !result.unfound && !result.timedOut)
       : [];
     if (Array.isArray(status.results)) {
-      const successfulResults = status.results.filter((result) => result.ok);
-      successfulResults.forEach((result) => {
+      const clearedResults = status.results.filter((result) => result.ok || result.unfound || result.timedOut);
+      clearedResults.forEach((result) => {
         if (result.profileUrl) {
-          selectedAuthors.delete(authorKey(result.name, normalizeProfileUrl(result.profileUrl)));
+          const key = authorKey(result.name, normalizeProfileUrl(result.profileUrl));
+          selectedAuthors.delete(key);
+          automaticSelectionOptOut.add(key);
           return;
         }
         // Compatibility with results started by an older worker version.
         for (const [key, author] of selectedAuthors) {
-          if (author.name === result.name) selectedAuthors.delete(key);
+          if (author.name === result.name) {
+            selectedAuthors.delete(key);
+            automaticSelectionOptOut.add(key);
+          }
         }
       });
       syncCheckboxes();
@@ -719,7 +707,7 @@
       blockingTotal = 0;
       blockingQueuedProfileUrls.clear();
       updatePanelHeading(panel);
-      resetBlockingConfirmation(panel);
+      resetBlockingActionButton(panel);
       setBlockingControls(panel, false);
       updateQuickBlockButton();
     }

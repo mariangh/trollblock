@@ -22,6 +22,28 @@ async function refreshPageAfterBlockingEnabled() {
   }
 }
 
+function isProfileUnfoundResult(result) {
+  return Boolean(result?.unfound);
+}
+
+function isProfileUnfoundError(error) {
+  const message = error?.message || String(error || "");
+  return /profile three-dot button was not found/i.test(message);
+}
+
+function isProfileTimedOutResult(result) {
+  return Boolean(result?.timedOut);
+}
+
+function isProfileTimedOutError(error) {
+  const message = error?.message || String(error || "");
+  return /profile did not load in time/i.test(message);
+}
+
+function isClearedResult(result) {
+  return Boolean(result?.ok || result?.unfound || result?.timedOut);
+}
+
 function buildStatus(job, message = "", state = job.state || "running") {
   const authors = Array.isArray(job.authors) ? job.authors : [];
   const results = Array.isArray(job.results) ? job.results : [];
@@ -32,13 +54,21 @@ function buildStatus(job, message = "", state = job.state || "running") {
   const fallbackMessage = state === "running" && total
     ? `Processing ${currentAuthor?.name || "the current author"} (${index + 1}/${total})...`
     : "Processing...";
+  const clearedProfileUrls = new Set(
+    results.filter(isClearedResult).map((result) => result.profileUrl).filter(Boolean)
+  );
+  const failedResults = results.filter((result) => !isClearedResult(result));
   return {
     state,
     message: message || storedMessage || fallbackMessage,
     completed: results.filter((result) => result.ok).length,
-    failed: results.filter((result) => !result.ok).length,
+    failed: failedResults.length,
+    unfound: results.filter(isProfileUnfoundResult).length,
+    timedOut: results.filter(isProfileTimedOutResult).length,
     total,
-    queuedProfileUrls: authors.map((author) => author.profileUrl).filter(Boolean),
+    queuedProfileUrls: authors
+      .map((author) => author.profileUrl)
+      .filter((profileUrl) => profileUrl && !clearedProfileUrls.has(profileUrl)),
     results
   };
 }
@@ -149,12 +179,17 @@ async function runJob() {
         if (!response?.ok) throw new Error(response?.error || "Blocking was not confirmed by the page.");
         result = { name: author.name, profileUrl: author.profileUrl, ok: true };
       } catch (error) {
+        const errorMessage = error.message || "Unknown error";
+        const unfound = isProfileUnfoundError(error);
+        const timedOut = isProfileTimedOutError(error);
         result = {
           name: author.name,
           profileUrl: author.profileUrl,
           ok: false,
-          error: error.message || "Unknown error"
+          error: unfound ? "Profile unfound" : timedOut ? "Profile timed out" : errorMessage
         };
+        if (unfound) result.unfound = true;
+        if (timedOut) result.timedOut = true;
       }
 
       // Reload the job before saving so authors added meanwhile are not lost.
@@ -177,16 +212,24 @@ async function runJob() {
     await closeAutomationWindow(job);
     await saveJob(job);
     const successes = job.results.filter((result) => result.ok).length;
-    const failures = job.results.length - successes;
-    const firstFailure = job.results.find((result) => !result.ok);
-    const summary = failures
-      ? `Completed: ${successes} blocked, ${failures} failed. First error: ${firstFailure?.error || "unknown"}`
-      : `Completed: ${successes} ${successes === 1 ? "author blocked" : "authors blocked"}.`;
+    const unfound = job.results.filter(isProfileUnfoundResult).length;
+    const timedOut = job.results.filter(isProfileTimedOutResult).length;
+    const failures = job.results.filter((result) => !isClearedResult(result)).length;
+    const firstFailure = job.results.find((result) => !isClearedResult(result));
+    const summaryParts = [
+      `${successes} ${successes === 1 ? "profile blocked" : "profiles blocked"}`
+    ];
+    if (unfound) summaryParts.push(`${unfound} ${unfound === 1 ? "profile unfound" : "profiles unfound"}`);
+    if (timedOut) summaryParts.push(`${timedOut} ${timedOut === 1 ? "profile timed out" : "profiles timed out"}`);
+    if (failures) summaryParts.push(`${failures} failed`);
+    const summary = `Completed: ${summaryParts.join(", ")}${
+      failures ? `. First error: ${firstFailure?.error || "unknown"}` : "."
+    }`;
     await notifySource(job, summary, "completed");
 
     // Leave the summary visible briefly, then rebuild the Facebook page.
-    // After reload, comments from blocked accounts should no longer be shown.
-    if (successes > 0 && await refreshPageAfterBlockingEnabled()) {
+    // After reload, comments from blocked or removed accounts should no longer be shown.
+    if ((successes > 0 || unfound > 0) && await refreshPageAfterBlockingEnabled()) {
       await sleep(1800);
       try {
         await chrome.tabs.reload(job.sourceTabId);
@@ -253,8 +296,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      const clearedProfileUrls = new Set(
+        (Array.isArray(job.results) ? job.results : [])
+          .filter(isClearedResult)
+          .map((result) => result.profileUrl)
+          .filter(Boolean)
+      );
       const knownProfileUrls = new Set(
-        (Array.isArray(job.authors) ? job.authors : []).map((author) => author.profileUrl)
+        (Array.isArray(job.authors) ? job.authors : [])
+          .map((author) => author.profileUrl)
+          .filter((profileUrl) => !clearedProfileUrls.has(profileUrl))
       );
       const additions = (message.authors || []).filter((author) => {
         const valid = author.name
