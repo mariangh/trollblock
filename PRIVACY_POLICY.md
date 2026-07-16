@@ -51,7 +51,7 @@ The extension does not download or execute remotely hosted code. All extension l
 
 ## User control
 
-Users can remove selected authors by unchecking them on the Facebook page or by reloading/closing the tab. Users can remove keyword dictionary entries and change the `Refresh page` preference from the extension's in-page panel. Users can uninstall the extension from Chrome at any time.
+Users can remove selected authors by unchecking them on the Facebook page, using the remove control in the extension's in-page panel, or by reloading/closing the tab. Users can remove keyword dictionary entries and change the `Refresh page` preference from the extension's in-page panel. Users can uninstall the extension from Chrome at any time.
 
 ## Contact
 

@@ -21,7 +21,7 @@ Detailed description:
 ```text
 TrollBlock helps you review visible Facebook comment authors, select specific authors, highlight comments that match your own keyword dictionary, and start Facebook's own block flow for selected profiles.
 
-The extension adds a small selection control next to visible comment authors and shows the current selection in an in-page panel and extension popup. Selected profiles are processed one by one in a helper window, while the main Facebook tab stays available. The panel reports progress and errors.
+The extension adds a small selection control next to visible comment authors and shows the current selection in an in-page panel and extension popup. Users can remove authors from the panel before processing. Selected profiles are processed one by one in a helper window, while the main Facebook tab stays available. The panel marks the current author with a small animated hourglass and reports completion, unavailable profiles, timeouts, and errors.
 
 The keyword dictionary and the `Refresh page` preference are stored with Chrome Sync when available. Selected authors and temporary blocking progress are used only for the current workflow.
 
@@ -121,11 +121,13 @@ https://github.com/mariangh/trollblock/blob/main/PRIVACY_POLICY.md
 2. Open a Facebook page that contains visible comments while logged into a Facebook test account.
 3. Confirm that a small "Select" checkbox appears next to visible comment authors.
 4. Select one or more authors. The bottom-right panel and extension popup show the selected author count/list.
-5. Optionally add a keyword in "Keyword dictionary" and reload or scroll comments to see matching authors highlighted and selected.
-6. Expand "Settings" and toggle "Refresh page" to control whether the source Facebook tab reloads after successful blocking.
-7. Use "Block", or minimize the panel and use the small "B" button next to "+", to start the same blocking flow.
-8. The extension opens selected Facebook profiles in a helper window and uses Facebook's own Block/Confirm UI. Use a test account/profile if completing the block action is required.
-9. The panel reports progress and any errors. The source Facebook tab reloads after successful blocking only when "Refresh page" is enabled.
+5. Hover a selected author in the expanded panel and use the small "-" button to remove that author from the selection.
+6. Optionally add a keyword in "Keyword dictionary" and reload or scroll comments to see matching authors selected and marked with the matched keyword badge.
+7. Expand "Settings" and toggle "Refresh page" to control whether the source Facebook tab reloads after successful blocking.
+8. Use "Block", or minimize the panel and use the small "B" button next to "+", to start the same blocking flow.
+9. The extension opens selected Facebook profiles in a helper window and uses Facebook's own Block/Confirm UI. Use a test account/profile if completing the block action is required.
+10. While processing, the panel marks the active author with a small animated hourglass.
+11. The panel reports successful blocks, unavailable profiles, timed-out profiles, and any other errors. The source Facebook tab reloads after successful blocking only when "Refresh page" is enabled.
 
 The extension has no external server, analytics, ads, affiliate behavior, or remote code.
 ```
@@ -136,6 +138,6 @@ Prepare screenshots that show:
 
 - the selection checkbox next to a visible Facebook comment author;
 - the minimized panel with the `B` button next to `+`;
-- the expanded panel with selected authors, keyword dictionary, and the `Refresh page` setting;
-- the progress state while selected profiles are processed;
+- the expanded panel with selected authors, keyword dictionary, hover remove control, and the `Refresh page` setting;
+- the animated hourglass state while selected profiles are processed;
 - the extension popup showing the selected author list.
