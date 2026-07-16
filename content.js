@@ -19,6 +19,7 @@
   let blockingRunning = false;
   let blockingProcessed = 0;
   let blockingTotal = 0;
+  let blockingQueuedProfileUrls = new Set();
   let automationMode = false;
 
   /** Normalizează URL-ul pentru eliminarea parametrilor de tracking și a duplicatelor. */
@@ -281,7 +282,7 @@
     const count = document.querySelector("#fbcas-count");
     if (!list || !count) return;
     const authors = selectedList();
-    count.textContent = String(authors.length);
+    if (!blockingRunning) count.textContent = String(authors.length);
     list.replaceChildren();
 
     if (!authors.length) {
@@ -289,6 +290,8 @@
       empty.className = "fbcas-empty";
       empty.textContent = "Niciun autor selectat";
       list.append(empty);
+      if (blockingRunning) updatePanelHeading();
+      updateBlockingActionButton();
       updateQuickBlockButton();
       return;
     }
@@ -297,6 +300,8 @@
       item.textContent = name;
       list.append(item);
     });
+    if (blockingRunning) updatePanelHeading();
+    updateBlockingActionButton();
     updateQuickBlockButton();
   }
 
@@ -356,6 +361,19 @@
     return selectedList().filter((author) => author.profileUrl);
   }
 
+  function queueableSelectedAuthors() {
+    return blockableSelectedAuthors().filter((author) =>
+      !blockingQueuedProfileUrls.has(normalizeProfileUrl(author.profileUrl))
+    );
+  }
+
+  function rememberQueuedAuthors(authors) {
+    authors.forEach((author) => {
+      const profileUrl = normalizeProfileUrl(author.profileUrl);
+      if (profileUrl) blockingQueuedProfileUrls.add(profileUrl);
+    });
+  }
+
   function updatePanelHeading(panel = document.querySelector("#fbcas-panel")) {
     if (!panel) return;
     const headingLabel = panel.querySelector("#fbcas-heading-label");
@@ -377,15 +395,37 @@
   function updateQuickBlockButton() {
     const quickBlockButton = document.querySelector("#fbcas-quick-block");
     if (!quickBlockButton) return;
-    quickBlockButton.disabled = blockingStarted || blockingRunning || !blockableSelectedAuthors().length;
+    const queueMode = blockingRunning;
+    const hasEligibleAuthors = Boolean(
+      (queueMode ? queueableSelectedAuthors() : blockableSelectedAuthors()).length
+    );
+    quickBlockButton.disabled = queueMode
+      ? !hasEligibleAuthors
+      : blockingStarted || !hasEligibleAuthors;
+    quickBlockButton.setAttribute(
+      "aria-label",
+      queueMode ? "Adaugă autorii selectați în coada de blocare" : "Pornește blocarea fără confirmare"
+    );
+    quickBlockButton.title = queueMode ? "Adaugă în coadă" : "Blochează acum";
+  }
+
+  function updateBlockingActionButton(panel = document.querySelector("#fbcas-panel")) {
+    const actionButton = panel?.querySelector("#fbcas-prepare");
+    if (!actionButton || !blockingRunning) return;
+    actionButton.textContent = "Adaugă selectați în coadă";
+    actionButton.classList.remove("fbcas-danger");
+    actionButton.disabled = !queueableSelectedAuthors().length;
   }
 
   function setBlockingControls(panel, running) {
     const actionButton = panel.querySelector("#fbcas-prepare");
     const cancelButton = panel.querySelector("#fbcas-cancel");
     const quickBlockButton = panel.querySelector("#fbcas-quick-block");
-    if (actionButton) actionButton.disabled = running;
-    if (quickBlockButton) quickBlockButton.disabled = running || blockingStarted || !blockableSelectedAuthors().length;
+    if (actionButton) {
+      actionButton.disabled = running ? !queueableSelectedAuthors().length : false;
+    }
+    if (running) updateBlockingActionButton(panel);
+    if (quickBlockButton) updateQuickBlockButton();
     if (cancelButton) {
       cancelButton.hidden = !running;
       cancelButton.disabled = false;
@@ -420,6 +460,8 @@
     const { keepConfirmationOnError = false } = options;
     const status = panel.querySelector("#fbcas-status");
 
+    blockingQueuedProfileUrls = new Set();
+    rememberQueuedAuthors(authorsWithProfiles);
     blockingRunning = true;
     blockingTotal = authorsWithProfiles.length;
     blockingProcessed = blockingTotal ? 1 : 0;
@@ -436,10 +478,33 @@
       blockingRunning = false;
       blockingProcessed = 0;
       blockingTotal = 0;
+      blockingQueuedProfileUrls.clear();
       updatePanelHeading(panel);
       setBlockingControls(panel, false);
       if (!keepConfirmationOnError) resetBlockingConfirmation(panel);
       updateQuickBlockButton();
+      status.textContent = friendlyErrorMessage(error);
+    }
+  }
+
+  async function addSelectedAuthorsToQueue(panel) {
+    const authorsWithProfiles = queueableSelectedAuthors();
+    const status = panel.querySelector("#fbcas-status");
+    if (!authorsWithProfiles.length) {
+      status.textContent = "Selectează autori noi pentru a-i adăuga în coadă.";
+      return;
+    }
+
+    status.textContent = "Adaug în coadă…";
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "FBCAS_ADD_TO_BLOCKING_QUEUE",
+        authors: authorsWithProfiles
+      });
+      if (!response?.ok) throw new Error(response?.error || "Nu am putut actualiza coada.");
+      rememberQueuedAuthors(authorsWithProfiles);
+      if (response.status) updateBlockingStatus(response.status);
+    } catch (error) {
       status.textContent = friendlyErrorMessage(error);
     }
   }
@@ -509,6 +574,11 @@
       }
     });
     actionButton.addEventListener("click", async () => {
+      if (blockingRunning) {
+        await addSelectedAuthorsToQueue(panel);
+        return;
+      }
+
       const authorsWithProfiles = validateBlockingSelection(panel);
       if (!authorsWithProfiles) return;
       const status = panel.querySelector("#fbcas-status");
@@ -525,6 +595,11 @@
       await startBlocking(panel, authorsWithProfiles, { keepConfirmationOnError: true });
     });
     quickBlockButton.addEventListener("click", async () => {
+      if (blockingRunning) {
+        await addSelectedAuthorsToQueue(panel);
+        return;
+      }
+
       const authorsWithProfiles = validateBlockingSelection(panel);
       if (!authorsWithProfiles) return;
       await startBlocking(panel, authorsWithProfiles);
@@ -551,6 +626,11 @@
     const statusProcessed = Array.isArray(status.results)
       ? status.results.length
       : (Number(status.completed) || 0) + (Number(status.failed) || 0);
+    if (Array.isArray(status.queuedProfileUrls)) {
+      blockingQueuedProfileUrls = new Set(
+        status.queuedProfileUrls.map(normalizeProfileUrl).filter(Boolean)
+      );
+    }
     blockingTotal = statusTotal || blockingTotal;
     blockingProcessed = Math.min(statusProcessed + (done ? 0 : 1), blockingTotal);
     if (!done) {
@@ -594,6 +674,7 @@
       blockingRunning = false;
       blockingProcessed = 0;
       blockingTotal = 0;
+      blockingQueuedProfileUrls.clear();
       updatePanelHeading(panel);
       resetBlockingConfirmation(panel);
       setBlockingControls(panel, false);

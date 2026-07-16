@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Comment Block Helper for Facebook",
-  "version": "0.6.10",
+  "version": "0.6.12",
   "description": "Select visible Facebook comment authors and block selected profiles from an in-page panel.",
   "permissions": ["activeTab", "tabs", "storage"],
   "icons": {

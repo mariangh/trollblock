@@ -1,6 +1,6 @@
 # Comment Block Helper for Facebook
 
-Extensie Chrome Manifest V3 care detectează comentariile vizibile pe Facebook, permite selectarea autorilor și îi poate bloca din panoul din pagină. Versiunea curentă este `0.6.10`.
+Extensie Chrome Manifest V3 care detectează comentariile vizibile pe Facebook, permite selectarea autorilor și îi poate bloca din panoul din pagină. Versiunea curentă este `0.6.12`.
 
 Această extensie nu este afiliată, aprobată, sponsorizată sau conectată cu Meta Platforms, Inc. sau Facebook.
 
@@ -23,6 +23,7 @@ Această extensie nu este afiliată, aprobată, sponsorizată sau conectată cu 
 - pornește cu panoul minimizat la încărcarea paginii Facebook;
 - împiedică deschiderea preview-ului de profil la folosirea controlului „Selectează”;
 - procesează profilurile într-o fereastră auxiliară nefocusată și afișează progresul;
+- permite adăugarea de autori noi în coadă cât timp blocarea este în curs;
 - permite anularea operației între autori;
 - nu folosește servere ale dezvoltatorului, analytics, reclame sau linkuri affiliate.
 
@@ -45,7 +46,8 @@ Selecția este păstrată doar în memoria filei curente și dispare la reîncă
 5. Apasă **Pregătește blocarea** și verifică avertismentul.
 6. Apasă **Confirmă blocarea** pentru a începe operația efectivă sau, când panoul este minimizat, apasă butonul rapid `B` de lângă `+` pentru pornire directă.
 7. Autorii sunt procesați secvențial într-o fereastră auxiliară nefocusată; fila principală își păstrează focusul.
-8. Urmărește rezultatul în panou. Dacă Facebook nu expune meniul sau dialogul așteptat, panoul afișează eroarea pentru autorul respectiv și operația continuă.
+8. Cât timp rulează, poți bifa alți autori și apăsa **Adaugă selectați în coadă** sau butonul `B` din panoul minimizat. Autorii existenți nu sunt adăugați de două ori.
+9. Urmărește rezultatul în panou. Dacă Facebook nu expune meniul sau dialogul așteptat, panoul afișează eroarea pentru autorul respectiv și operația continuă.
 
 > **Atenție:** blocarea este o modificare reală a contului Facebook. Interfața Facebook se poate schimba, iar extensia nu încearcă să ocolească verificări, confirmări suplimentare sau restricții ale platformei.
 

@@ -27,6 +27,7 @@ function buildStatus(job, message = "", state = job.state || "running") {
     completed: results.filter((result) => result.ok).length,
     failed: results.filter((result) => !result.ok).length,
     total,
+    queuedProfileUrls: authors.map((author) => author.profileUrl).filter(Boolean),
     results
   };
 }
@@ -108,11 +109,25 @@ async function runJob() {
   jobRunnerActive = true;
 
   try {
-    while (job.index < job.authors.length && job.state === "running") {
+    while (job.state === "running") {
+      // Verificăm mereu starea stocată: coada poate primi autori noi între pași.
+      const latestAtStart = await getJob();
+      if (latestAtStart) job = latestAtStart;
+      if (job.state !== "running" || job.index >= job.authors.length) break;
+
       const author = job.authors[job.index];
       await notifySource(job, `Procesez ${author.name} (${job.index + 1}/${job.authors.length})…`);
+      let result;
       try {
         const tab = await openProfileWithoutFocus(job, author.profileUrl);
+        // O selecție nouă poate fi adăugată cât timp se încarcă profilul curent.
+        // Păstrăm coada salvată și adăugăm doar datele ferestrei de automatizare.
+        const latestBeforeLoad = await getJob();
+        if (latestBeforeLoad) {
+          latestBeforeLoad.automationWindowId = job.automationWindowId;
+          latestBeforeLoad.temporaryTabId = job.temporaryTabId;
+          job = latestBeforeLoad;
+        }
         await saveJob(job);
         await waitUntilComplete(tab.id);
         await sleep(1800);
@@ -121,18 +136,22 @@ async function runJob() {
           profileUrl: author.profileUrl
         });
         if (!response?.ok) throw new Error(response?.error || "Blocarea nu a fost confirmată de pagină.");
-        job.results.push({ name: author.name, profileUrl: author.profileUrl, ok: true });
+        result = { name: author.name, profileUrl: author.profileUrl, ok: true };
       } catch (error) {
-        job.results.push({
+        result = {
           name: author.name,
           profileUrl: author.profileUrl,
           ok: false,
           error: error.message || "Eroare necunoscută"
-        });
+        };
       }
-      job.index += 1;
+
+      // Reîncărcăm jobul înainte de salvare ca autorii adăugați între timp să nu fie pierduți.
       const latest = await getJob();
-      if (latest?.state === "cancelled") job.state = "cancelled";
+      if (latest) job = latest;
+      job.results = Array.isArray(job.results) ? job.results : [];
+      job.results.push(result);
+      job.index += 1;
       await saveJob(job);
     }
 
@@ -207,6 +226,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
       sendResponse({ ok: true, status: null });
+    })().catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === "FBCAS_ADD_TO_BLOCKING_QUEUE") {
+    (async () => {
+      const job = await getJob();
+      if (job?.state !== "running") {
+        sendResponse({ ok: false, error: "Nu există o operație de blocare activă." });
+        return;
+      }
+      if (!sender.tab?.id || sender.tab.id !== job.sourceTabId) {
+        sendResponse({ ok: false, error: "Coada poate fi modificată doar din fila care a pornit blocarea." });
+        return;
+      }
+
+      const knownProfileUrls = new Set(
+        (Array.isArray(job.authors) ? job.authors : []).map((author) => author.profileUrl)
+      );
+      const additions = (message.authors || []).filter((author) => {
+        const valid = author.name
+          && /^https:\/\/(www|web|m)\.facebook\.com\//i.test(author.profileUrl || "");
+        if (!valid || knownProfileUrls.has(author.profileUrl)) return false;
+        knownProfileUrls.add(author.profileUrl);
+        return true;
+      });
+
+      if (additions.length) job.authors.push(...additions);
+      const messageText = additions.length
+        ? `${additions.length === 1 ? "Am adăugat 1 autor" : `Am adăugat ${additions.length} autori`} în coadă.`
+        : "Nu există autori noi de adăugat în coadă.";
+      await notifySource(job, messageText);
+      sendResponse({ ok: true, added: additions.length, status: buildStatus(job, messageText) });
+      runJob();
     })().catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
