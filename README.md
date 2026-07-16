@@ -1,6 +1,6 @@
 # TrollBlock
 
-TrollBlock is a Chrome Manifest V3 extension that detects visible Facebook comments, lets you select comment authors, and can block selected profiles from an in-page panel. The current version is `0.6.18`.
+TrollBlock is a Chrome Manifest V3 extension that detects visible Facebook comments, lets you select comment authors, and can block selected profiles from an in-page panel. The current version is `0.6.20`.
 
 This extension is not affiliated with, endorsed by, sponsored by, or connected to Meta Platforms, Inc. or Facebook.
 
@@ -9,7 +9,7 @@ This extension is not affiliated with, endorsed by, sponsored by, or connected t
 - detects visible comments using semantic attributes and multiple fallbacks;
 - adds a checkbox next to each comment author;
 - supports multi-selection and keeps duplicate instances of the same author in sync;
-- shows a deduplicated selected-author list in the in-page panel and popup;
+- shows a deduplicated selected-author list in the in-page panel and popup, with hover remove controls in the panel;
 - starts blocking immediately from the expanded panel with a single **Block** click;
 - includes a small quick `B` button in the minimized panel, next to `+`, that runs the same block action;
 - supports minimizing and maximizing the panel with the `-` / `+` button;
@@ -23,7 +23,7 @@ This extension is not affiliated with, endorsed by, sponsored by, or connected t
 - keeps blocking buttons in a sticky semi-transparent dock at the bottom of the panel;
 - starts with the panel minimized when a Facebook page loads;
 - prevents Facebook profile previews from opening when using the `Select` control;
-- processes profiles in an unfocused helper window and shows progress;
+- processes profiles in an unfocused helper window and marks the active author with a small animated hourglass;
 - lets you add new authors to the queue while blocking is already running;
 - reports unavailable profiles as `profiles unfound`, load timeouts as `profiles timed out`, and removes both from the active queue;
 - supports cancelling the operation between authors;

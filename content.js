@@ -21,6 +21,7 @@
   let blockingRunning = false;
   let blockingProcessed = 0;
   let blockingTotal = 0;
+  let blockingActiveProfileUrl = "";
   let blockingQueuedProfileUrls = new Set();
   let automationMode = false;
 
@@ -295,6 +296,15 @@
     return [...selectedAuthors.values()].sort((a, b) => a.name.localeCompare(b.name, "en"));
   }
 
+  function removeSelectedAuthor(author) {
+    const profileUrl = normalizeProfileUrl(author.profileUrl);
+    const key = authorKey(author.name, profileUrl);
+    selectedAuthors.delete(key);
+    automaticSelectionOptOut.add(key);
+    syncCheckboxes();
+    renderPanel();
+  }
+
   function renderPanel() {
     const list = document.querySelector("#fbcas-selected-list");
     const count = document.querySelector("#fbcas-count");
@@ -313,9 +323,29 @@
       updateQuickBlockButton();
       return;
     }
-    authors.forEach(({ name }) => {
+    authors.forEach(({ name, profileUrl }) => {
       const item = document.createElement("li");
-      item.textContent = name;
+      const normalizedProfileUrl = normalizeProfileUrl(profileUrl);
+      if (blockingRunning && normalizedProfileUrl && normalizedProfileUrl === blockingActiveProfileUrl) {
+        item.className = "fbcas-active-author";
+        item.setAttribute("aria-label", `${name}, processing`);
+      }
+      const nameText = document.createElement("span");
+      nameText.className = "fbcas-author-name";
+      nameText.textContent = name;
+      item.append(nameText);
+
+      const alreadyQueued = normalizedProfileUrl && blockingQueuedProfileUrls.has(normalizedProfileUrl);
+      if (!blockingRunning || !alreadyQueued) {
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "fbcas-remove-author";
+        removeButton.textContent = "−";
+        removeButton.title = `Remove ${name}`;
+        removeButton.setAttribute("aria-label", `Remove ${name} from the block list`);
+        removeButton.addEventListener("click", () => removeSelectedAuthor({ name, profileUrl }));
+        item.append(removeButton);
+      }
       list.append(item);
     });
     if (blockingRunning) updatePanelHeading();
@@ -481,12 +511,14 @@
 
     blockingQueuedProfileUrls = new Set();
     rememberQueuedAuthors(authorsWithProfiles);
+    blockingActiveProfileUrl = normalizeProfileUrl(authorsWithProfiles[0]?.profileUrl);
     blockingRunning = true;
     blockingTotal = authorsWithProfiles.length;
     blockingProcessed = blockingTotal ? 1 : 0;
     updatePanelHeading(panel);
     setBlockingControls(panel, true);
-    status.textContent = "Starting blocking...";
+    renderPanel();
+    status.textContent = "";
     try {
       const response = await chrome.runtime.sendMessage({
         type: "FBCAS_START_BLOCKING",
@@ -497,6 +529,7 @@
       blockingRunning = false;
       blockingProcessed = 0;
       blockingTotal = 0;
+      blockingActiveProfileUrl = "";
       blockingQueuedProfileUrls.clear();
       updatePanelHeading(panel);
       setBlockingControls(panel, false);
@@ -660,6 +693,7 @@
     }
     blockingTotal = statusTotal || blockingTotal;
     blockingProcessed = Math.min(statusProcessed + (done ? 0 : 1), blockingTotal);
+    blockingActiveProfileUrl = done ? "" : normalizeProfileUrl(status.currentProfileUrl);
     if (!done) {
       blockingRunning = true;
       updatePanelHeading(panel);
@@ -690,7 +724,12 @@
       renderPanel();
       updatePanelHeading(panel);
     }
-    message.replaceChildren(document.createTextNode(status.message || "Processing..."));
+    const statusText = status.message || "Processing...";
+    const hideProcessingText = !done && !failures.length && /^Processing(?:\s|$)/.test(statusText);
+    message.replaceChildren();
+    if (!hideProcessingText && statusText) {
+      message.append(document.createTextNode(statusText));
+    }
     if (failures.length) {
       const details = document.createElement("ul");
       details.className = "fbcas-errors";
@@ -705,6 +744,7 @@
       blockingRunning = false;
       blockingProcessed = 0;
       blockingTotal = 0;
+      blockingActiveProfileUrl = "";
       blockingQueuedProfileUrls.clear();
       updatePanelHeading(panel);
       resetBlockingActionButton(panel);

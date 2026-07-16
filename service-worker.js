@@ -54,6 +54,8 @@ function buildStatus(job, message = "", state = job.state || "running") {
   const fallbackMessage = state === "running" && total
     ? `Processing ${currentAuthor?.name || "the current author"} (${index + 1}/${total})...`
     : "Processing...";
+  const currentProfileUrl = state === "running" ? currentAuthor?.profileUrl || "" : "";
+  const currentName = state === "running" ? currentAuthor?.name || "" : "";
   const clearedProfileUrls = new Set(
     results.filter(isClearedResult).map((result) => result.profileUrl).filter(Boolean)
   );
@@ -65,6 +67,8 @@ function buildStatus(job, message = "", state = job.state || "running") {
     failed: failedResults.length,
     unfound: results.filter(isProfileUnfoundResult).length,
     timedOut: results.filter(isProfileTimedOutResult).length,
+    currentProfileUrl,
+    currentName,
     total,
     queuedProfileUrls: authors
       .map((author) => author.profileUrl)
