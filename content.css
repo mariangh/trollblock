@@ -75,13 +75,15 @@
 #fbcas-selected-list li { margin: 5px 0; overflow-wrap: anywhere; }
 .fbcas-empty { color: #65676b; font-style: italic; }
 
-#fbcas-dictionary {
+#fbcas-dictionary,
+#fbcas-settings {
   margin: 10px 0 12px;
   padding: 9px;
   border: 1px solid #d8dadf;
   border-radius: 8px;
 }
-#fbcas-dictionary summary { font-weight: 700; cursor: pointer; }
+#fbcas-dictionary summary,
+#fbcas-settings summary { font-weight: 700; cursor: pointer; }
 #fbcas-keyword-form { display: flex; gap: 5px; margin-top: 9px; }
 #fbcas-keyword-input {
   min-width: 0;
@@ -119,8 +121,23 @@
   line-height: 1;
   cursor: pointer;
 }
+.fbcas-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  cursor: pointer;
+}
+.fbcas-setting-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #0866ff;
+  cursor: pointer;
+}
 
-/* Clasa este aplicată direct linkului autorului comentariului potrivit. */
+/* The class is applied directly to the matching comment author link. */
 a.fbcas-keyword-match,
 a.fbcas-keyword-match:visited,
 a.fbcas-keyword-match > * {

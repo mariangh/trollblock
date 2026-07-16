@@ -1,69 +1,71 @@
-# Comment Block Helper for Facebook
+# TrollBlock
 
-Extensie Chrome Manifest V3 care detectează comentariile vizibile pe Facebook, permite selectarea autorilor și îi poate bloca din panoul din pagină. Versiunea curentă este `0.6.12`.
+TrollBlock is a Chrome Manifest V3 extension that detects visible Facebook comments, lets you select comment authors, and can block selected profiles from an in-page panel. The current version is `0.6.14`.
 
-Această extensie nu este afiliată, aprobată, sponsorizată sau conectată cu Meta Platforms, Inc. sau Facebook.
+This extension is not affiliated with, endorsed by, sponsored by, or connected to Meta Platforms, Inc. or Facebook.
 
-## Funcționalități
+## Features
 
-- caută comentarii vizibile folosind atribute semantice și mai multe fallback-uri;
-- adaugă o bifă lângă autorul fiecărui comentariu;
-- permite selecția multiplă și sincronizează duplicatele aceluiași autor;
-- afișează lista fără duplicate în panoul din pagină și în popup;
-- cere o a doua apăsare pentru confirmarea blocării efective când folosești butonul mare din panou;
-- include în panoul minimizat un buton rapid `B`, lângă `+`, care pornește blocarea fără confirmarea din panou;
-- permite minimizarea și maximizarea panoului din butonul `−` / `+`;
-- elimină din selecție și debifează autorii procesați cu succes;
-- reîncarcă automat fila Facebook după blocări reușite, pentru actualizarea comentariilor;
-- detectează și comentariile încărcate prin „Vezi mai multe”, inclusiv containerele reciclate de Facebook;
-- include un dicționar sincronizat de cuvinte și expresii cheie;
-- marchează cu roșu autorii comentariilor care conțin termeni din dicționar;
-- selectează automat autorii marcați de dicționar, cu posibilitatea debifării manuale;
-- păstrează butoanele de blocare într-un dock sticky semi-transparent la baza panoului;
-- pornește cu panoul minimizat la încărcarea paginii Facebook;
-- împiedică deschiderea preview-ului de profil la folosirea controlului „Selectează”;
-- procesează profilurile într-o fereastră auxiliară nefocusată și afișează progresul;
-- permite adăugarea de autori noi în coadă cât timp blocarea este în curs;
-- permite anularea operației între autori;
-- nu folosește servere ale dezvoltatorului, analytics, reclame sau linkuri affiliate.
+- detects visible comments using semantic attributes and multiple fallbacks;
+- adds a checkbox next to each comment author;
+- supports multi-selection and keeps duplicate instances of the same author in sync;
+- shows a deduplicated selected-author list in the in-page panel and popup;
+- requires a second click to confirm real blocking when using the main panel button;
+- includes a small quick `B` button in the minimized panel, next to `+`, that starts blocking without the panel confirmation step;
+- supports minimizing and maximizing the panel with the `-` / `+` button;
+- removes successfully processed authors from the selection and unchecks them;
+- can reload the Facebook tab after successful blocking to refresh comments;
+- detects comments loaded through "See more", including recycled Facebook containers;
+- includes a synced keyword and phrase dictionary;
+- includes an expandable settings section with the `Refresh page` option;
+- highlights comment authors in red when their comment matches a dictionary term;
+- automatically selects dictionary-matched authors, while still allowing manual unselecting;
+- keeps blocking buttons in a sticky semi-transparent dock at the bottom of the panel;
+- starts with the panel minimized when a Facebook page loads;
+- prevents Facebook profile previews from opening when using the `Select` control;
+- processes profiles in an unfocused helper window and shows progress;
+- lets you add new authors to the queue while blocking is already running;
+- supports cancelling the operation between authors;
+- does not use developer servers, analytics, ads, or affiliate links.
 
-Selecția este păstrată doar în memoria filei curente și dispare la reîncărcarea paginii. Dicționarul este păstrat în `chrome.storage.sync`, astfel încât se poate sincroniza între browserele Chrome în care utilizatorul este logat și are Chrome Sync activ. La prima rulare după actualizare, termenii vechi din `chrome.storage.local` sunt migrați automat în stocarea sincronizată. Starea temporară a operației este păstrată în `chrome.storage.session` și dispare când se închide sesiunea Chrome. Datele sunt folosite numai pentru interacțiunea cu paginile Facebook declarate în `manifest.json`; extensia nu le trimite către servere ale dezvoltatorului.
+The selection is kept only in the current tab memory and disappears when the page is reloaded. The keyword dictionary and `Refresh page` setting are stored in `chrome.storage.sync`, so they can sync between Chrome browsers where the user is signed in and has Chrome Sync enabled. On the first run after updating, older terms from `chrome.storage.local` are migrated automatically to synced storage. Temporary operation state is stored in `chrome.storage.session` and disappears when the Chrome session ends. Data is used only for interaction with the Facebook pages declared in `manifest.json`; the extension does not send it to developer servers.
 
-## Instalare prin `chrome://extensions`
+## Install With `chrome://extensions`
 
-1. Deschide Chrome și accesează `chrome://extensions`.
-2. Activează **Developer mode / Modul pentru dezvoltatori** din colțul dreapta-sus.
-3. Apasă **Load unpacked / Încarcă extensia neîmpachetată**.
-4. Selectează directorul acestui proiect (`fb-block`).
-5. Deschide sau reîncarcă o pagină Facebook care conține comentarii.
+1. Open Chrome and go to `chrome://extensions`.
+2. Turn on **Developer mode** in the top-right corner.
+3. Click **Load unpacked**.
+4. Select this project directory (`trollblock`).
+5. Open or reload a Facebook page that contains comments.
 
-## Utilizare
+## Usage
 
-1. Derulează până la comentariile dorite; extensia procesează elementele vizibile încărcate dinamic.
-2. Bifează „Selectează” lângă autorii doriți.
-3. Verifică lista în panoul din dreapta-jos sau apăsând pictograma extensiei.
-4. Deschide **Dicționar cuvinte cheie** pentru a adăuga termeni separați prin virgulă, punct și virgulă sau Enter. Potrivirea ignoră majusculele și diacriticele.
-5. Apasă **Pregătește blocarea** și verifică avertismentul.
-6. Apasă **Confirmă blocarea** pentru a începe operația efectivă sau, când panoul este minimizat, apasă butonul rapid `B` de lângă `+` pentru pornire directă.
-7. Autorii sunt procesați secvențial într-o fereastră auxiliară nefocusată; fila principală își păstrează focusul.
-8. Cât timp rulează, poți bifa alți autori și apăsa **Adaugă selectați în coadă** sau butonul `B` din panoul minimizat. Autorii existenți nu sunt adăugați de două ori.
-9. Urmărește rezultatul în panou. Dacă Facebook nu expune meniul sau dialogul așteptat, panoul afișează eroarea pentru autorul respectiv și operația continuă.
+1. Scroll to the comments you want; the extension processes visible dynamically loaded elements.
+2. Check `Select` next to the authors you want.
+3. Review the list in the bottom-right panel or by clicking the extension icon.
+4. Open **Keyword dictionary** to add terms separated by comma, semicolon, or Enter. Matching ignores case and diacritics.
+5. Click **Prepare blocking** and review the warning.
+6. Click **Confirm blocking** to begin the real operation, or when the panel is minimized click the quick `B` button next to `+` to start directly.
+7. Authors are processed sequentially in an unfocused helper window; the main tab keeps focus.
+8. In **Settings**, enable or disable **Refresh page** to control automatic reload after successful blocking.
+9. While blocking is running, you can check more authors and click **Add selected to queue** or the minimized `B` button. Existing authors are not added twice.
+10. Watch the result in the panel. If Facebook does not expose the expected menu or dialog, the panel shows the error for that author and the operation continues.
 
-> **Atenție:** blocarea este o modificare reală a contului Facebook. Interfața Facebook se poate schimba, iar extensia nu încearcă să ocolească verificări, confirmări suplimentare sau restricții ale platformei.
+> **Warning:** blocking is a real Facebook account change. Facebook's interface may change, and the extension does not try to bypass checks, extra confirmations, or platform restrictions.
 
-## Publicare Chrome Web Store
+## Chrome Web Store Publishing
 
-- [PRIVACY_POLICY.md](PRIVACY_POLICY.md) conține politica de confidențialitate pregătită pentru câmpul Privacy Policy URL din Developer Dashboard.
-- [CHROME_WEB_STORE_SUBMISSION.md](CHROME_WEB_STORE_SUBMISSION.md) conține numele recomandat, descrierea, single purpose statement, justificările de permisiuni, declarațiile de privacy și instrucțiunile pentru reviewer.
-- Iconurile declarate în `manifest.json` sunt în directorul `icons/`.
+- [PRIVACY_POLICY.md](PRIVACY_POLICY.md) contains the privacy policy prepared for the Developer Dashboard Privacy Policy URL field.
+- [CHROME_WEB_STORE_SUBMISSION.md](CHROME_WEB_STORE_SUBMISSION.md) contains the recommended name, description, single purpose statement, permission justifications, privacy declarations, and reviewer instructions.
+- Icons declared in `manifest.json` are in the `icons/` directory.
 
-## Structură
+## Structure
 
-- `manifest.json` — declarația Manifest V3 și paginile permise;
-- `content.js` — detecție, deduplicare, selecție și panou;
-- `content.css` — stilurile izolate prin prefixul `fbcas`;
-- `popup.html`, `popup.js` — vizualizarea selecției din fila activă.
-- `service-worker.js` — coada secvențială, filele temporare și raportarea rezultatelor.
-- `PRIVACY_POLICY.md`, `CHROME_WEB_STORE_SUBMISSION.md` — materialele de publicare.
+- `manifest.json` - the Manifest V3 declaration and allowed pages;
+- `content.js` - detection, deduplication, selection, and panel logic;
+- `content.css` - styles isolated through the `fbcas` prefix;
+- `popup.html`, `popup.js` - the active-tab selection view;
+- `service-worker.js` - the sequential queue, temporary tabs, and result reporting;
+- `PRIVACY_POLICY.md`, `CHROME_WEB_STORE_SUBMISSION.md` - publishing materials.
 
-Facebook își modifică periodic DOM-ul; detecția evită clasele CSS generate, dar etichetele meniului de blocare pot necesita ajustări ulterioare. Sunt recunoscute interfețele Facebook în română și engleză.
+Facebook changes its DOM periodically; detection avoids generated CSS classes, but block-menu labels may need future adjustments. The extension currently recognizes Facebook interfaces in English and Romanian.

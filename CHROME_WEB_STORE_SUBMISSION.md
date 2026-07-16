@@ -7,7 +7,7 @@ Use this file to complete the Chrome Web Store Developer Dashboard fields consis
 Recommended name:
 
 ```text
-Comment Block Helper for Facebook
+TrollBlock
 ```
 
 Short description:
@@ -19,11 +19,11 @@ Select visible Facebook comment authors and start Facebook's block flow for sele
 Detailed description:
 
 ```text
-Comment Block Helper for Facebook helps you review visible Facebook comment authors, select specific authors, highlight comments that match your own keyword dictionary, and start Facebook's own block flow for selected profiles.
+TrollBlock helps you review visible Facebook comment authors, select specific authors, highlight comments that match your own keyword dictionary, and start Facebook's own block flow for selected profiles.
 
 The extension adds a small selection control next to visible comment authors and shows the current selection in an in-page panel and extension popup. Selected profiles are processed one by one in a helper window, while the main Facebook tab stays available. The panel reports progress and errors.
 
-The keyword dictionary is stored with Chrome Sync when available. Selected authors and temporary blocking progress are used only for the current workflow.
+The keyword dictionary and the `Refresh page` preference are stored with Chrome Sync when available. Selected authors and temporary blocking progress are used only for the current workflow.
 
 This extension does not use analytics, advertising, affiliate links, or developer-controlled servers. It does not sell or transmit data to the developer.
 
@@ -59,7 +59,7 @@ Used to identify the active Facebook tab, open or update the helper window tab f
 `storage`
 
 ```text
-Used to store the user's keyword dictionary with chrome.storage.sync, migrate older keyword data from local storage, and store temporary blocking progress with chrome.storage.session.
+Used to store the user's keyword dictionary and `Refresh page` preference with chrome.storage.sync, migrate older keyword data from local storage, and store temporary blocking progress with chrome.storage.session.
 ```
 
 Host access for `https://www.facebook.com/*`, `https://web.facebook.com/*`, and `https://m.facebook.com/*`
@@ -111,7 +111,7 @@ The extension uses data only for its single purpose and user-facing features.
 Privacy policy URL after pushing to GitHub:
 
 ```text
-https://github.com/mariangh/fb-comments/blob/main/PRIVACY_POLICY.md
+https://github.com/mariangh/trollblock/blob/main/PRIVACY_POLICY.md
 ```
 
 ## Reviewer Test Instructions
@@ -119,12 +119,13 @@ https://github.com/mariangh/fb-comments/blob/main/PRIVACY_POLICY.md
 ```text
 1. Install the unpacked extension or review the submitted package.
 2. Open a Facebook page that contains visible comments while logged into a Facebook test account.
-3. Confirm that a small "Selectează" checkbox appears next to visible comment authors.
+3. Confirm that a small "Select" checkbox appears next to visible comment authors.
 4. Select one or more authors. The bottom-right panel and extension popup show the selected author count/list.
-5. Optionally add a keyword in "Dicționar cuvinte cheie" and reload or scroll comments to see matching authors highlighted and selected.
-6. Use "Pregătește blocarea" followed by "Confirmă blocarea", or minimize the panel and use the small "B" button next to "+", to start the same blocking flow.
-7. The extension opens selected Facebook profiles in a helper window and uses Facebook's own Block/Confirm UI. Use a test account/profile if completing the block action is required.
-8. The panel reports progress and any errors. The source Facebook tab reloads after successful blocking.
+5. Optionally add a keyword in "Keyword dictionary" and reload or scroll comments to see matching authors highlighted and selected.
+6. Expand "Settings" and toggle "Refresh page" to control whether the source Facebook tab reloads after successful blocking.
+7. Use "Prepare blocking" followed by "Confirm blocking", or minimize the panel and use the small "B" button next to "+", to start the same blocking flow.
+8. The extension opens selected Facebook profiles in a helper window and uses Facebook's own Block/Confirm UI. Use a test account/profile if completing the block action is required.
+9. The panel reports progress and any errors. The source Facebook tab reloads after successful blocking only when "Refresh page" is enabled.
 
 The extension has no external server, analytics, ads, affiliate behavior, or remote code.
 ```
@@ -135,6 +136,6 @@ Prepare screenshots that show:
 
 - the selection checkbox next to a visible Facebook comment author;
 - the minimized panel with the `B` button next to `+`;
-- the expanded panel with selected authors and keyword dictionary;
+- the expanded panel with selected authors, keyword dictionary, and the `Refresh page` setting;
 - the progress state while selected profiles are processed;
 - the extension popup showing the selected author list.

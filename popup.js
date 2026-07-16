@@ -6,16 +6,16 @@ async function loadSelection() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id || !/^https:\/\/(www|web|m)\.facebook\.com\//i.test(tab.url || "")) {
-      message.textContent = "Deschide o pagină Facebook pentru a vedea selecția.";
+      message.textContent = "Open a Facebook page to see the selection.";
       return;
     }
     const response = await chrome.tabs.sendMessage(tab.id, { type: "FBCAS_GET_SELECTION" });
     const authors = response?.authors || [];
     if (!authors.length) {
-      message.textContent = "Niciun autor selectat în această filă.";
+      message.textContent = "No authors selected in this tab.";
       return;
     }
-    message.textContent = `${authors.length} ${authors.length === 1 ? "autor selectat" : "autori selectați"}`;
+    message.textContent = `${authors.length} ${authors.length === 1 ? "author selected" : "authors selected"}`;
     list.replaceChildren(...authors.map(({ name }) => {
       const item = document.createElement("li");
       item.textContent = name;
@@ -23,7 +23,7 @@ async function loadSelection() {
     }));
     list.hidden = false;
   } catch {
-    message.textContent = "Reîncarcă fila Facebook după instalarea extensiei.";
+    message.textContent = "Reload the Facebook tab after installing the extension.";
   }
 }
 

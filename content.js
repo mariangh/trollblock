@@ -1,19 +1,22 @@
 (() => {
   "use strict";
 
-  // Namespace-ul evită inițializarea dublă dacă scriptul este injectat din nou.
+  // The namespace prevents duplicate initialization if the script is injected again.
   if (window.__fbCommentAuthorSelector) return;
   window.__fbCommentAuthorSelector = true;
 
   const ATTR = "data-fbcas-enhanced";
   const KEYWORDS_STORAGE_KEY = "fbcasKeywords";
+  const SETTINGS_STORAGE_KEY = "fbcasSettings";
   const KEYWORDS_STORAGE_AREA = chrome.storage.sync;
   const LEGACY_KEYWORDS_STORAGE_AREA = chrome.storage.local;
-  const PANEL_TITLE = "Autori selectați";
-  const BLOCKING_PANEL_TITLE = "Blochez";
+  const DEFAULT_SETTINGS = Object.freeze({ refreshPage: true });
+  const PANEL_TITLE = "Selected authors";
+  const BLOCKING_PANEL_TITLE = "Blocking";
   const selectedAuthors = new Map();
   const automaticSelectionOptOut = new Set();
   let keywords = [];
+  let settings = { ...DEFAULT_SETTINGS };
   let scanScheduled = false;
   let blockingStarted = false;
   let blockingRunning = false;
@@ -22,14 +25,14 @@
   let blockingQueuedProfileUrls = new Set();
   let automationMode = false;
 
-  /** Normalizează URL-ul pentru eliminarea parametrilor de tracking și a duplicatelor. */
+  /** Normalizes profile URLs so tracking parameters and duplicates do not affect matching. */
   function normalizeProfileUrl(rawUrl) {
     if (!rawUrl) return "";
     try {
       const url = new URL(rawUrl, location.origin);
       if (!/facebook\.com$/i.test(url.hostname)) return "";
-      // Facebook alternează domeniile și parametrii de tracking la navigare.
-      // Pentru profile.php păstrăm doar id-ul; pentru vanity URL nu păstrăm query-ul.
+      // Facebook alternates domains and tracking parameters while navigating.
+      // For profile.php we keep only the id; for vanity URLs we drop the query string.
       url.hostname = "www.facebook.com";
       if (url.pathname.toLowerCase() === "/profile.php") {
         const id = url.searchParams.get("id");
@@ -44,7 +47,7 @@
     }
   }
 
-  /** Produce o cheie stabilă; URL-ul profilului este preferat, numele este fallback. */
+  /** Produces a stable key; the profile URL is preferred and the name is the fallback. */
   function authorKey(name, profileUrl) {
     return profileUrl || name.trim().toLocaleLowerCase("ro-RO");
   }
@@ -87,12 +90,28 @@
     scheduleScan();
   }
 
+  function normalizeSettings(value) {
+    return { refreshPage: value?.refreshPage !== false };
+  }
+
+  async function loadSettings() {
+    const stored = await KEYWORDS_STORAGE_AREA.get({ [SETTINGS_STORAGE_KEY]: DEFAULT_SETTINGS });
+    settings = normalizeSettings(stored[SETTINGS_STORAGE_KEY]);
+    renderSettings();
+  }
+
+  async function saveSettings(nextSettings) {
+    settings = normalizeSettings(nextSettings);
+    await KEYWORDS_STORAGE_AREA.set({ [SETTINGS_STORAGE_KEY]: settings });
+    renderSettings();
+  }
+
   function friendlyErrorMessage(error) {
     const message = error?.message || String(error || "");
     if (/Extension context invalidated/i.test(message)) {
-      return "Extensia a fost reîncărcată. Reîncarcă pagina Facebook ca panoul să se reconecteze.";
+      return "The extension was reloaded. Reload the Facebook page so the panel can reconnect.";
     }
-    return message || "A apărut o eroare.";
+    return message || "An error occurred.";
   }
 
   function setStatusMessage(message) {
@@ -155,8 +174,8 @@
   }
 
   /**
-   * Facebook își schimbă des clasele CSS. Căutarea pornește de la roluri/atribute
-   * semantice și folosește mai multe fallback-uri, fără selectori de clase obfuscate.
+   * Facebook changes CSS classes frequently. Detection starts from semantic roles and
+   * attributes, then uses fallbacks without relying on obfuscated class selectors.
    */
   function findAuthor(comment) {
     const anchors = [...comment.querySelectorAll('a[role="link"], a[href]')];
@@ -189,9 +208,9 @@
     ];
     const semanticContainers = [...document.querySelectorAll(selectors.join(","))].filter(isLikelyComment);
 
-    // Unele loturi încărcate prin „Vezi mai multe comentarii” nu mai primesc
-    // role="article" sau aria-label. În acest caz pornim de la acțiunea Reply/Răspunde
-    // și urcăm până la cel mai mic container care conține și un autor valid.
+    // Some batches loaded through "See more comments" no longer receive role="article"
+    // or an aria-label. In that case we start from Reply and climb to the smallest
+    // container that also includes a valid author.
     const actionElements = [...document.querySelectorAll('a, button, [role="button"], [role="link"]')]
       .filter((element) => /^(reply|răspunde)$/i.test((element.textContent || "").trim()));
     const fallbackContainers = actionElements.map((action) => {
@@ -221,34 +240,34 @@
       return;
     }
 
-    // React reciclează containerele comentariilor. Eliminăm controlul vechi dacă
-    // autorul sau conținutul containerului s-a schimbat între două randări.
+    // React recycles comment containers. Remove the old control if the author or
+    // container content changed between renders.
     existingToggle?.remove();
 
     comment.setAttribute(ATTR, author.key);
     const label = document.createElement("label");
     label.className = "fbcas-author-toggle";
-    label.title = `Selectează autorul ${author.name}`;
+    label.title = `Select author ${author.name}`;
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = selectedAuthors.has(author.key);
-    checkbox.setAttribute("aria-label", `Selectează autorul ${author.name}`);
+    checkbox.setAttribute("aria-label", `Select author ${author.name}`);
 
     const caption = document.createElement("span");
-    caption.textContent = "Selectează";
+    caption.textContent = "Select";
     label.append(checkbox, caption);
 
-    // Facebook folosește event delegation pentru cardul de preview al profilului.
-    // Oprim evenimentele controlului extensiei înainte să ajungă la handler-ele sale,
-    // fără preventDefault, astfel încât checkbox-ul continuă să funcționeze normal.
+    // Facebook uses event delegation for profile preview cards. Stop control events
+    // before they reach Facebook handlers, without preventDefault, so the checkbox
+    // keeps normal behavior.
     ["click", "mousedown", "mouseup", "pointerdown", "pointerup", "mouseover", "pointerover"]
       .forEach((eventName) => {
         label.addEventListener(eventName, (event) => event.stopPropagation());
       });
 
-    // Controlul este copil direct al comentariului, complet în afara wrapperului
-    // autorului care declanșează hovercard-ul Facebook.
+    // The control is a direct child of the comment, outside the author wrapper that
+    // triggers Facebook hovercards.
     comment.append(label);
     positionAuthorControl(comment, author, label);
     checkbox.addEventListener("change", () => {
@@ -274,7 +293,7 @@
   }
 
   function selectedList() {
-    return [...selectedAuthors.values()].sort((a, b) => a.name.localeCompare(b.name, "ro"));
+    return [...selectedAuthors.values()].sort((a, b) => a.name.localeCompare(b.name, "en"));
   }
 
   function renderPanel() {
@@ -288,7 +307,7 @@
     if (!authors.length) {
       const empty = document.createElement("li");
       empty.className = "fbcas-empty";
-      empty.textContent = "Niciun autor selectat";
+      empty.textContent = "No authors selected";
       list.append(empty);
       if (blockingRunning) updatePanelHeading();
       updateBlockingActionButton();
@@ -319,8 +338,8 @@
       const removeButton = document.createElement("button");
       removeButton.type = "button";
       removeButton.textContent = "×";
-      removeButton.title = `Șterge ${keyword}`;
-      removeButton.setAttribute("aria-label", `Șterge cuvântul cheie ${keyword}`);
+      removeButton.title = `Remove ${keyword}`;
+      removeButton.setAttribute("aria-label", `Remove keyword ${keyword}`);
       removeButton.addEventListener("click", async () => {
         try {
           const latestKeywords = await readKeywordsFromStorage(KEYWORDS_STORAGE_AREA);
@@ -335,6 +354,11 @@
       chip.append(removeButton);
       container.append(chip);
     });
+  }
+
+  function renderSettings() {
+    const refreshPageCheckbox = document.querySelector("#fbcas-refresh-page");
+    if (refreshPageCheckbox) refreshPageCheckbox.checked = settings.refreshPage;
   }
 
   async function addKeywords(rawValue) {
@@ -404,15 +428,15 @@
       : blockingStarted || !hasEligibleAuthors;
     quickBlockButton.setAttribute(
       "aria-label",
-      queueMode ? "Adaugă autorii selectați în coada de blocare" : "Pornește blocarea fără confirmare"
+      queueMode ? "Add selected authors to the blocking queue" : "Start blocking without confirmation"
     );
-    quickBlockButton.title = queueMode ? "Adaugă în coadă" : "Blochează acum";
+    quickBlockButton.title = queueMode ? "Add to queue" : "Block now";
   }
 
   function updateBlockingActionButton(panel = document.querySelector("#fbcas-panel")) {
     const actionButton = panel?.querySelector("#fbcas-prepare");
     if (!actionButton || !blockingRunning) return;
-    actionButton.textContent = "Adaugă selectați în coadă";
+    actionButton.textContent = "Add selected to queue";
     actionButton.classList.remove("fbcas-danger");
     actionButton.disabled = !queueableSelectedAuthors().length;
   }
@@ -436,20 +460,20 @@
     const actionButton = panel.querySelector("#fbcas-prepare");
     if (!actionButton) return;
     blockingStarted = false;
-    actionButton.textContent = "Pregătește blocarea";
+    actionButton.textContent = "Prepare blocking";
     actionButton.classList.remove("fbcas-danger");
   }
 
   function validateBlockingSelection(panel) {
     const status = panel.querySelector("#fbcas-status");
     if (!selectedAuthors.size) {
-      status.textContent = "Selectează cel puțin un autor.";
+      status.textContent = "Select at least one author.";
       return null;
     }
 
     const authorsWithProfiles = blockableSelectedAuthors();
     if (!authorsWithProfiles.length) {
-      status.textContent = "Nu am putut identifica URL-urile profilurilor selectate.";
+      status.textContent = "Could not identify the selected profile URLs.";
       return null;
     }
 
@@ -467,13 +491,13 @@
     blockingProcessed = blockingTotal ? 1 : 0;
     updatePanelHeading(panel);
     setBlockingControls(panel, true);
-    status.textContent = "Pornesc blocarea…";
+    status.textContent = "Starting blocking...";
     try {
       const response = await chrome.runtime.sendMessage({
         type: "FBCAS_START_BLOCKING",
         authors: authorsWithProfiles
       });
-      if (!response?.ok) throw new Error(response?.error || "Nu am putut porni operația.");
+      if (!response?.ok) throw new Error(response?.error || "Could not start the operation.");
     } catch (error) {
       blockingRunning = false;
       blockingProcessed = 0;
@@ -491,17 +515,17 @@
     const authorsWithProfiles = queueableSelectedAuthors();
     const status = panel.querySelector("#fbcas-status");
     if (!authorsWithProfiles.length) {
-      status.textContent = "Selectează autori noi pentru a-i adăuga în coadă.";
+      status.textContent = "Select new authors to add to the queue.";
       return;
     }
 
-    status.textContent = "Adaug în coadă…";
+    status.textContent = "Adding to queue...";
     try {
       const response = await chrome.runtime.sendMessage({
         type: "FBCAS_ADD_TO_BLOCKING_QUEUE",
         authors: authorsWithProfiles
       });
-      if (!response?.ok) throw new Error(response?.error || "Nu am putut actualiza coada.");
+      if (!response?.ok) throw new Error(response?.error || "Could not update the queue.");
       rememberQueuedAuthors(authorsWithProfiles);
       if (response.status) updateBlockingStatus(response.status);
     } catch (error) {
@@ -514,7 +538,7 @@
       const response = await chrome.runtime.sendMessage({ type: "FBCAS_GET_BLOCKING_STATUS" });
       if (response?.status) updateBlockingStatus(response.status);
     } catch {
-      // Worker-ul poate fi trezit mai lent; următorul status live va reface panoul.
+      // The worker may wake slowly; the next live status will restore the panel.
     }
   }
 
@@ -528,24 +552,31 @@
       <div class="fbcas-header">
         <div class="fbcas-heading"><span id="fbcas-heading-label">${PANEL_TITLE}</span> <span id="fbcas-count">0</span></div>
         <div class="fbcas-header-actions">
-          <button id="fbcas-quick-block" type="button" aria-label="Pornește blocarea fără confirmare" title="Blochează acum">B</button>
-          <button id="fbcas-toggle-panel" type="button" aria-label="Maximizează panoul" title="Maximizează">+</button>
+          <button id="fbcas-quick-block" type="button" aria-label="Start blocking without confirmation" title="Block now">B</button>
+          <button id="fbcas-toggle-panel" type="button" aria-label="Maximize panel" title="Maximize">+</button>
         </div>
       </div>
       <div id="fbcas-panel-body">
         <ul id="fbcas-selected-list"></ul>
         <details id="fbcas-dictionary">
-          <summary>Dicționar cuvinte cheie (<span id="fbcas-keyword-count">0</span>)</summary>
+          <summary>Keyword dictionary (<span id="fbcas-keyword-count">0</span>)</summary>
           <form id="fbcas-keyword-form">
-            <input id="fbcas-keyword-input" type="text" placeholder="cuvânt sau expresie" autocomplete="off">
-            <button type="submit">Adaugă</button>
+            <input id="fbcas-keyword-input" type="text" placeholder="word or phrase" autocomplete="off">
+            <button type="submit">Add</button>
           </form>
-          <div id="fbcas-keyword-list" aria-label="Cuvinte cheie"></div>
+          <div id="fbcas-keyword-list" aria-label="Keywords"></div>
+        </details>
+        <details id="fbcas-settings">
+          <summary>Settings</summary>
+          <label class="fbcas-setting-row" for="fbcas-refresh-page">
+            <span>Refresh page</span>
+            <input id="fbcas-refresh-page" type="checkbox" role="switch" aria-label="Refresh page after blocking">
+          </label>
         </details>
         <div id="fbcas-status" role="status"></div>
         <div id="fbcas-action-dock">
-          <button id="fbcas-prepare" type="button">Pregătește blocarea</button>
-          <button id="fbcas-cancel" type="button" hidden>Anulează</button>
+          <button id="fbcas-prepare" type="button">Prepare blocking</button>
+          <button id="fbcas-cancel" type="button" hidden>Cancel</button>
         </div>
       </div>
     `;
@@ -557,11 +588,12 @@
     const toggleButton = panel.querySelector("#fbcas-toggle-panel");
     const keywordForm = panel.querySelector("#fbcas-keyword-form");
     const keywordInput = panel.querySelector("#fbcas-keyword-input");
+    const refreshPageCheckbox = panel.querySelector("#fbcas-refresh-page");
     toggleButton.addEventListener("click", () => {
       const minimized = panel.classList.toggle("fbcas-minimized");
       toggleButton.textContent = minimized ? "+" : "−";
-      toggleButton.setAttribute("aria-label", minimized ? "Maximizează panoul" : "Minimizează panoul");
-      toggleButton.title = minimized ? "Maximizează" : "Minimizează";
+      toggleButton.setAttribute("aria-label", minimized ? "Maximize panel" : "Minimize panel");
+      toggleButton.title = minimized ? "Maximize" : "Minimize";
     });
     keywordForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -570,6 +602,16 @@
         keywordInput.value = "";
         keywordInput.focus();
       } catch (error) {
+        setStatusMessage(friendlyErrorMessage(error));
+      }
+    });
+    refreshPageCheckbox.addEventListener("change", async () => {
+      const previousSettings = settings;
+      try {
+        await saveSettings({ ...settings, refreshPage: refreshPageCheckbox.checked });
+      } catch (error) {
+        settings = previousSettings;
+        renderSettings();
         setStatusMessage(friendlyErrorMessage(error));
       }
     });
@@ -585,10 +627,10 @@
 
       if (!blockingStarted) {
         blockingStarted = true;
-        actionButton.textContent = `Confirmă blocarea (${authorsWithProfiles.length})`;
+        actionButton.textContent = `Confirm blocking (${authorsWithProfiles.length})`;
         actionButton.classList.add("fbcas-danger");
         quickBlockButton.disabled = true;
-        status.textContent = "Confirmă pentru a bloca efectiv autorii. Acțiunea modifică lista ta de blocări Facebook.";
+        status.textContent = "Confirm to actually block these authors. This changes your Facebook block list.";
         return;
       }
 
@@ -614,6 +656,7 @@
     });
     renderPanel();
     renderKeywords();
+    renderSettings();
     reconnectBlockingStatus(panel);
   }
 
@@ -650,7 +693,7 @@
           selectedAuthors.delete(authorKey(result.name, normalizeProfileUrl(result.profileUrl)));
           return;
         }
-        // Compatibilitate cu rezultate pornite de o versiune mai veche a worker-ului.
+        // Compatibility with results started by an older worker version.
         for (const [key, author] of selectedAuthors) {
           if (author.name === result.name) selectedAuthors.delete(key);
         }
@@ -659,7 +702,7 @@
       renderPanel();
       updatePanelHeading(panel);
     }
-    message.replaceChildren(document.createTextNode(status.message || "Se procesează…"));
+    message.replaceChildren(document.createTextNode(status.message || "Processing..."));
     if (failures.length) {
       const details = document.createElement("ul");
       details.className = "fbcas-errors";
@@ -729,35 +772,35 @@
     return null;
   }
 
-  /** Rulează exclusiv într-o filă temporară deschisă pe profilul autorului. */
+  /** Runs only in a temporary tab opened on the author profile. */
   async function blockCurrentProfile(expectedProfileUrl) {
     if (!expectedProfileUrl || normalizeProfileUrl(location.href) !== normalizeProfileUrl(expectedProfileUrl)) {
-      throw new Error("Profilul deschis nu corespunde autorului selectat.");
+      throw new Error("The opened profile does not match the selected author.");
     }
 
     const controls = await waitForElement(() => {
       const scoped = visibleElements('main [role="button"], main button, [role="main"] [role="button"], [role="main"] button');
       return scoped.length ? scoped : null;
     });
-    if (!controls) throw new Error("Controalele profilului nu au fost găsite.");
+    if (!controls) throw new Error("Profile controls were not found.");
 
     const strongPattern = /(see options|vezi opțiunile|actions|acțiuni|more|mai multe|options|opțiuni)/i;
     const ellipsisPattern = /(^|\s)(\.\.\.|…|⋯|•••)(\s|$)/;
     const strongCandidates = controls.filter((element) => strongPattern.test(normalizedText(element)));
     const ellipsisCandidates = controls.filter((element) => ellipsisPattern.test(normalizedText(element)));
     const candidates = [...new Set([...strongCandidates, ...ellipsisCandidates])].slice(0, 12);
-    if (!candidates.length) throw new Error("Butonul cu trei puncte al profilului nu a fost găsit.");
+    if (!candidates.length) throw new Error("The profile three-dot button was not found.");
 
     let blockItem = null;
     for (const candidate of candidates) {
       candidate.click();
       blockItem = await waitForElement(findBlockAction, 1800);
       if (blockItem) break;
-      // Închide meniul greșit înainte de următorul candidat.
+      // Close the wrong menu before trying the next candidate.
       candidate.click();
       await sleep(250);
     }
-    if (!blockItem) throw new Error("Opțiunea Blochează nu a fost găsită.");
+    if (!blockItem) throw new Error("The Block option was not found.");
     blockItem.click();
 
     const confirmButton = await waitForElement(() =>
@@ -765,7 +808,7 @@
         /(^|\s)(confirm|block|confirmă|blochează)(\s|$)/i.test(normalizedText(element))
       )
     );
-    if (!confirmButton) throw new Error("Dialogul de confirmare nu a fost găsit.");
+    if (!confirmButton) throw new Error("The confirmation dialog was not found.");
     confirmButton.click();
     await sleep(1200);
     return { ok: true };
@@ -784,17 +827,24 @@
     requestAnimationFrame(scan);
   }
 
-  // Facebook încarcă și reciclează comentarii dinamic; observer-ul reanalizează loturile.
+  // Facebook loads and recycles comments dynamically; the observer rescans batches.
   const observer = new MutationObserver(scheduleScan);
   observer.observe(document.documentElement, { childList: true, subtree: true });
   addEventListener("scroll", scheduleScan, { passive: true });
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "sync" || !changes[KEYWORDS_STORAGE_KEY]) return;
-    keywords = normalizeKeywordList(changes[KEYWORDS_STORAGE_KEY].newValue);
-    renderKeywords();
-    scheduleScan();
+    if (areaName !== "sync") return;
+    if (changes[KEYWORDS_STORAGE_KEY]) {
+      keywords = normalizeKeywordList(changes[KEYWORDS_STORAGE_KEY].newValue);
+      renderKeywords();
+      scheduleScan();
+    }
+    if (changes[SETTINGS_STORAGE_KEY]) {
+      settings = normalizeSettings(changes[SETTINGS_STORAGE_KEY].newValue);
+      renderSettings();
+    }
   });
   loadKeywords().catch((error) => setStatusMessage(friendlyErrorMessage(error)));
+  loadSettings().catch((error) => setStatusMessage(friendlyErrorMessage(error)));
   scheduleScan();
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

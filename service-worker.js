@@ -1,6 +1,7 @@
 "use strict";
 
 const JOB_KEY = "fbcasBlockingJob";
+const SETTINGS_STORAGE_KEY = "fbcasSettings";
 let jobRunnerActive = false;
 
 async function getJob() {
@@ -11,6 +12,16 @@ async function saveJob(job) {
   await chrome.storage.session.set({ [JOB_KEY]: job });
 }
 
+async function refreshPageAfterBlockingEnabled() {
+  try {
+    const stored = await chrome.storage.sync.get({ [SETTINGS_STORAGE_KEY]: { refreshPage: true } });
+    return stored[SETTINGS_STORAGE_KEY]?.refreshPage !== false;
+  } catch {
+    // Keep the existing behavior if synced storage does not respond.
+    return true;
+  }
+}
+
 function buildStatus(job, message = "", state = job.state || "running") {
   const authors = Array.isArray(job.authors) ? job.authors : [];
   const results = Array.isArray(job.results) ? job.results : [];
@@ -19,8 +30,8 @@ function buildStatus(job, message = "", state = job.state || "running") {
   const currentAuthor = authors[index];
   const storedMessage = job.lastMessageIndex === job.index ? job.lastMessage : "";
   const fallbackMessage = state === "running" && total
-    ? `Procesez ${currentAuthor?.name || "autorul curent"} (${index + 1}/${total})…`
-    : "Se procesează…";
+    ? `Processing ${currentAuthor?.name || "the current author"} (${index + 1}/${total})...`
+    : "Processing...";
   return {
     state,
     message: message || storedMessage || fallbackMessage,
@@ -42,7 +53,7 @@ async function notifySource(job, message, state = "running") {
       status: buildStatus(job, message, state)
     });
   } catch {
-    // Fila sursă poate fi închisă; procesarea poate continua independent.
+    // The source tab may be closed; processing can continue independently.
   }
 }
 
@@ -50,7 +61,7 @@ async function waitUntilComplete(tabId, timeout = 20000) {
   const tab = await chrome.tabs.get(tabId);
   if (tab.status === "complete") return;
   await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => finish(reject, new Error("Profilul nu s-a încărcat la timp.")), timeout);
+    const timer = setTimeout(() => finish(reject, new Error("The profile did not load in time.")), timeout);
     const onUpdated = (updatedTabId, changeInfo) => {
       if (updatedTabId === tabId && changeInfo.status === "complete") finish(resolve);
     };
@@ -67,9 +78,9 @@ const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mil
 
 async function closeAutomationWindow(job) {
   if (job.automationWindowId) {
-    try { await chrome.windows.remove(job.automationWindowId); } catch { /* deja închisă */ }
+    try { await chrome.windows.remove(job.automationWindowId); } catch { /* already closed */ }
   } else if (job.temporaryTabId) {
-    try { await chrome.tabs.remove(job.temporaryTabId); } catch { /* deja închisă */ }
+    try { await chrome.tabs.remove(job.temporaryTabId); } catch { /* already closed */ }
   }
   delete job.automationWindowId;
   delete job.temporaryTabId;
@@ -86,8 +97,8 @@ async function openProfileWithoutFocus(job, profileUrl) {
     }
   }
 
-  // Fila este activă în propria fereastră, deci Facebook îi randază DOM-ul,
-  // însă focused:false păstrează focusul în fereastra principală a utilizatorului.
+  // The tab is active in its own window, so Facebook renders its DOM,
+  // while focused:false keeps focus in the user main window.
   const automationWindow = await chrome.windows.create({
     url: profileUrl,
     focused: false,
@@ -96,7 +107,7 @@ async function openProfileWithoutFocus(job, profileUrl) {
     height: 760
   });
   const tab = automationWindow.tabs?.[0];
-  if (!tab?.id) throw new Error("Fereastra de procesare nu a putut fi creată.");
+  if (!tab?.id) throw new Error("The processing window could not be created.");
   job.automationWindowId = automationWindow.id;
   job.temporaryTabId = tab.id;
   return tab;
@@ -110,18 +121,18 @@ async function runJob() {
 
   try {
     while (job.state === "running") {
-      // Verificăm mereu starea stocată: coada poate primi autori noi între pași.
+      // Always check stored state: the queue can receive new authors between steps.
       const latestAtStart = await getJob();
       if (latestAtStart) job = latestAtStart;
       if (job.state !== "running" || job.index >= job.authors.length) break;
 
       const author = job.authors[job.index];
-      await notifySource(job, `Procesez ${author.name} (${job.index + 1}/${job.authors.length})…`);
+      await notifySource(job, `Processing ${author.name} (${job.index + 1}/${job.authors.length})...`);
       let result;
       try {
         const tab = await openProfileWithoutFocus(job, author.profileUrl);
-        // O selecție nouă poate fi adăugată cât timp se încarcă profilul curent.
-        // Păstrăm coada salvată și adăugăm doar datele ferestrei de automatizare.
+        // A new selection can be added while the current profile loads.
+        // Keep the saved queue and add only automation window data.
         const latestBeforeLoad = await getJob();
         if (latestBeforeLoad) {
           latestBeforeLoad.automationWindowId = job.automationWindowId;
@@ -135,18 +146,18 @@ async function runJob() {
           type: "FBCAS_BLOCK_PROFILE",
           profileUrl: author.profileUrl
         });
-        if (!response?.ok) throw new Error(response?.error || "Blocarea nu a fost confirmată de pagină.");
+        if (!response?.ok) throw new Error(response?.error || "Blocking was not confirmed by the page.");
         result = { name: author.name, profileUrl: author.profileUrl, ok: true };
       } catch (error) {
         result = {
           name: author.name,
           profileUrl: author.profileUrl,
           ok: false,
-          error: error.message || "Eroare necunoscută"
+          error: error.message || "Unknown error"
         };
       }
 
-      // Reîncărcăm jobul înainte de salvare ca autorii adăugați între timp să nu fie pierduți.
+      // Reload the job before saving so authors added meanwhile are not lost.
       const latest = await getJob();
       if (latest) job = latest;
       job.results = Array.isArray(job.results) ? job.results : [];
@@ -158,7 +169,7 @@ async function runJob() {
     if (job.state === "cancelled") {
       await closeAutomationWindow(job);
       await saveJob(job);
-      await notifySource(job, "Blocarea a fost anulată.", "cancelled");
+      await notifySource(job, "Blocking was cancelled.", "cancelled");
       return;
     }
 
@@ -169,18 +180,18 @@ async function runJob() {
     const failures = job.results.length - successes;
     const firstFailure = job.results.find((result) => !result.ok);
     const summary = failures
-      ? `Finalizat: ${successes} blocați, ${failures} nereușiți. Prima eroare: ${firstFailure?.error || "necunoscută"}`
-      : `Finalizat: ${successes} ${successes === 1 ? "autor blocat" : "autori blocați"}.`;
+      ? `Completed: ${successes} blocked, ${failures} failed. First error: ${firstFailure?.error || "unknown"}`
+      : `Completed: ${successes} ${successes === 1 ? "author blocked" : "authors blocked"}.`;
     await notifySource(job, summary, "completed");
 
-    // Lasă sumarul vizibil pentru scurt timp, apoi reconstruiește pagina Facebook.
-    // La reîncărcare, comentariile conturilor blocate nu ar mai trebui afișate.
-    if (successes > 0) {
+    // Leave the summary visible briefly, then rebuild the Facebook page.
+    // After reload, comments from blocked accounts should no longer be shown.
+    if (successes > 0 && await refreshPageAfterBlockingEnabled()) {
       await sleep(1800);
       try {
         await chrome.tabs.reload(job.sourceTabId);
       } catch {
-        // Fila sursă poate fi închisă între timp.
+        // The source tab may have been closed in the meantime.
       }
     }
   } finally {
@@ -193,14 +204,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       const existing = await getJob();
       if (existing?.state === "running") {
-        sendResponse({ ok: false, error: "Există deja o operație de blocare în curs." });
+        sendResponse({ ok: false, error: "A blocking operation is already running." });
         return;
       }
       const authors = (message.authors || []).filter((author) =>
         author.name && /^https:\/\/(www|web|m)\.facebook\.com\//i.test(author.profileUrl || "")
       );
       if (!authors.length || !sender.tab?.id) {
-        sendResponse({ ok: false, error: "Lista autorilor nu este validă." });
+        sendResponse({ ok: false, error: "The author list is not valid." });
         return;
       }
       await saveJob({
@@ -234,11 +245,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       const job = await getJob();
       if (job?.state !== "running") {
-        sendResponse({ ok: false, error: "Nu există o operație de blocare activă." });
+        sendResponse({ ok: false, error: "There is no active blocking operation." });
         return;
       }
       if (!sender.tab?.id || sender.tab.id !== job.sourceTabId) {
-        sendResponse({ ok: false, error: "Coada poate fi modificată doar din fila care a pornit blocarea." });
+        sendResponse({ ok: false, error: "The queue can be changed only from the tab that started blocking." });
         return;
       }
 
@@ -255,8 +266,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       if (additions.length) job.authors.push(...additions);
       const messageText = additions.length
-        ? `${additions.length === 1 ? "Am adăugat 1 autor" : `Am adăugat ${additions.length} autori`} în coadă.`
-        : "Nu există autori noi de adăugat în coadă.";
+        ? `${additions.length === 1 ? "Added 1 author" : `Added ${additions.length} authors`} to the queue.`
+        : "There are no new authors to add to the queue.";
       await notifySource(job, messageText);
       sendResponse({ ok: true, added: additions.length, status: buildStatus(job, messageText) });
       runJob();
@@ -279,6 +290,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Reia un job dacă service worker-ul MV3 a fost suspendat între autori.
+// Resume a job if the MV3 service worker was suspended between authors.
 chrome.runtime.onStartup.addListener(runJob);
 chrome.runtime.onInstalled.addListener(() => chrome.storage.session.remove(JOB_KEY));

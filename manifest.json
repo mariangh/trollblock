@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Comment Block Helper for Facebook",
-  "version": "0.6.12",
+  "name": "TrollBlock",
+  "version": "0.6.14",
   "description": "Select visible Facebook comment authors and block selected profiles from an in-page panel.",
   "permissions": ["activeTab", "tabs", "storage"],
   "icons": {
@@ -14,7 +14,7 @@
     "service_worker": "service-worker.js"
   },
   "action": {
-    "default_title": "Autori selectați",
+    "default_title": "Selected authors",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
