@@ -8,8 +8,10 @@
   const ATTR = "data-fbcas-enhanced";
   const KEYWORDS_STORAGE_KEY = "fbcasKeywords";
   const SETTINGS_STORAGE_KEY = "fbcasSettings";
+  const SELECTED_AUTHORS_STORAGE_KEY = "fbcasSelectedAuthors";
   const KEYWORDS_STORAGE_AREA = chrome.storage.sync;
   const LEGACY_KEYWORDS_STORAGE_AREA = chrome.storage.local;
+  const SELECTED_AUTHORS_STORAGE_AREA = chrome.storage.local;
   const DEFAULT_SETTINGS = Object.freeze({ refreshPage: true });
   const PANEL_TITLE = "Selected authors";
   const BLOCKING_PANEL_TITLE = "Blocking";
@@ -23,6 +25,9 @@
   let blockingTotal = 0;
   let blockingActiveProfileUrl = "";
   let blockingQueuedProfileUrls = new Set();
+  let selectedAuthorsLoaded = false;
+  let selectedAuthorsSaveRunning = false;
+  let selectedAuthorsSaveRequested = false;
   let automationMode = false;
 
   /** Normalizes profile URLs so tracking parameters and duplicates do not affect matching. */
@@ -106,6 +111,69 @@
     renderSettings();
   }
 
+  function normalizeAuthorRecord(author) {
+    const name = String(author?.name || "").trim().replace(/\s+/g, " ");
+    const profileUrl = normalizeProfileUrl(author?.profileUrl);
+    return name ? { name, profileUrl } : null;
+  }
+
+  function mergeSelectedAuthorRecords(authors) {
+    (Array.isArray(authors) ? authors : []).forEach((author) => {
+      const normalizedAuthor = normalizeAuthorRecord(author);
+      if (!normalizedAuthor) return;
+      selectedAuthors.set(
+        authorKey(normalizedAuthor.name, normalizedAuthor.profileUrl),
+        normalizedAuthor
+      );
+    });
+  }
+
+  function selectedAuthorsForStorage() {
+    return selectedList().map(({ name, profileUrl }) => ({
+      name,
+      profileUrl: normalizeProfileUrl(profileUrl)
+    }));
+  }
+
+  async function saveSelectedAuthors() {
+    if (!selectedAuthorsLoaded) return;
+    await SELECTED_AUTHORS_STORAGE_AREA.set({
+      [SELECTED_AUTHORS_STORAGE_KEY]: selectedAuthorsForStorage()
+    });
+  }
+
+  async function flushSelectedAuthors() {
+    if (selectedAuthorsSaveRunning) return;
+    selectedAuthorsSaveRunning = true;
+    try {
+      while (selectedAuthorsSaveRequested) {
+        selectedAuthorsSaveRequested = false;
+        await saveSelectedAuthors();
+      }
+    } catch (error) {
+      setStatusMessage(friendlyErrorMessage(error));
+    } finally {
+      selectedAuthorsSaveRunning = false;
+    }
+  }
+
+  function persistSelectedAuthors() {
+    if (!selectedAuthorsLoaded) return;
+    selectedAuthorsSaveRequested = true;
+    flushSelectedAuthors();
+  }
+
+  async function loadSelectedAuthors() {
+    const stored = await SELECTED_AUTHORS_STORAGE_AREA.get({ [SELECTED_AUTHORS_STORAGE_KEY]: [] });
+    mergeSelectedAuthorRecords(stored[SELECTED_AUTHORS_STORAGE_KEY]);
+    selectedAuthorsLoaded = true;
+    renderPanel();
+    syncCheckboxes();
+    updatePanelHeading();
+    updateQuickBlockButton();
+    await saveSelectedAuthors();
+  }
+
   function friendlyErrorMessage(error) {
     const message = error?.message || String(error || "");
     if (/Extension context invalidated/i.test(message)) {
@@ -145,6 +213,7 @@
 
     if (!selectedAuthors.has(author.key) && !automaticSelectionOptOut.has(author.key)) {
       selectedAuthors.set(author.key, { name: author.name, profileUrl: author.profileUrl });
+      persistSelectedAuthors();
       syncCheckboxes();
       renderPanel();
     }
@@ -278,6 +347,7 @@
         selectedAuthors.delete(author.key);
         automaticSelectionOptOut.add(author.key);
       }
+      persistSelectedAuthors();
       syncCheckboxes();
       renderPanel();
     });
@@ -301,6 +371,7 @@
     const key = authorKey(author.name, profileUrl);
     selectedAuthors.delete(key);
     automaticSelectionOptOut.add(key);
+    persistSelectedAuthors();
     syncCheckboxes();
     renderPanel();
   }
@@ -720,6 +791,7 @@
           }
         }
       });
+      persistSelectedAuthors();
       syncCheckboxes();
       renderPanel();
       updatePanelHeading(panel);
@@ -860,20 +932,31 @@
   observer.observe(document.documentElement, { childList: true, subtree: true });
   addEventListener("scroll", scheduleScan, { passive: true });
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "sync") return;
-    if (changes[KEYWORDS_STORAGE_KEY]) {
-      keywords = normalizeKeywordList(changes[KEYWORDS_STORAGE_KEY].newValue);
-      renderKeywords();
-      scheduleScan();
+    if (areaName === "sync") {
+      if (changes[KEYWORDS_STORAGE_KEY]) {
+        keywords = normalizeKeywordList(changes[KEYWORDS_STORAGE_KEY].newValue);
+        renderKeywords();
+        scheduleScan();
+      }
+      if (changes[SETTINGS_STORAGE_KEY]) {
+        settings = normalizeSettings(changes[SETTINGS_STORAGE_KEY].newValue);
+        renderSettings();
+      }
+      return;
     }
-    if (changes[SETTINGS_STORAGE_KEY]) {
-      settings = normalizeSettings(changes[SETTINGS_STORAGE_KEY].newValue);
-      renderSettings();
+
+    if (areaName === "local" && changes[SELECTED_AUTHORS_STORAGE_KEY] && selectedAuthorsLoaded) {
+      selectedAuthors.clear();
+      mergeSelectedAuthorRecords(changes[SELECTED_AUTHORS_STORAGE_KEY].newValue);
+      syncCheckboxes();
+      renderPanel();
+      updatePanelHeading();
+      updateQuickBlockButton();
     }
   });
+  loadSelectedAuthors().catch((error) => setStatusMessage(friendlyErrorMessage(error))).finally(scheduleScan);
   loadKeywords().catch((error) => setStatusMessage(friendlyErrorMessage(error)));
   loadSettings().catch((error) => setStatusMessage(friendlyErrorMessage(error)));
-  scheduleScan();
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "FBCAS_GET_SELECTION") {

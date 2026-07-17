@@ -1,6 +1,6 @@
 # TrollBlock
 
-TrollBlock is a Chrome Manifest V3 extension that detects visible Facebook comments, lets you select comment authors, and can block selected profiles from an in-page panel. The current version is `0.6.20`.
+TrollBlock is a Chrome Manifest V3 extension that detects visible Facebook comments, lets you select comment authors, and can block selected profiles from an in-page panel. The current version is `0.6.23`.
 
 This extension is not affiliated with, endorsed by, sponsored by, or connected to Meta Platforms, Inc. or Facebook.
 
@@ -10,6 +10,7 @@ This extension is not affiliated with, endorsed by, sponsored by, or connected t
 - adds a checkbox next to each comment author;
 - supports multi-selection and keeps duplicate instances of the same author in sync;
 - shows a deduplicated selected-author list in the in-page panel and popup, with hover remove controls in the panel;
+- keeps the selected-author list after page refreshes by storing it locally in Chrome;
 - starts blocking immediately from the expanded panel with a single **Block** click;
 - includes a small quick `B` button in the minimized panel, next to `+`, that runs the same block action;
 - supports minimizing and maximizing the panel with the `-` / `+` button;
@@ -23,13 +24,13 @@ This extension is not affiliated with, endorsed by, sponsored by, or connected t
 - keeps blocking buttons in a sticky semi-transparent dock at the bottom of the panel;
 - starts with the panel minimized when a Facebook page loads;
 - prevents Facebook profile previews from opening when using the `Select` control;
-- processes profiles in an unfocused helper window and marks the active author with a small animated hourglass;
+- processes profiles in a minimized helper window and marks the active author with a small animated hourglass;
 - lets you add new authors to the queue while blocking is already running;
 - reports unavailable profiles as `profiles unfound`, load timeouts as `profiles timed out`, and removes both from the active queue;
 - supports cancelling the operation between authors;
 - does not use developer servers, analytics, ads, or affiliate links.
 
-The selection is kept only in the current tab memory and disappears when the page is reloaded. The keyword dictionary and `Refresh page` setting are stored in `chrome.storage.sync`, so they can sync between Chrome browsers where the user is signed in and has Chrome Sync enabled. On the first run after updating, older terms from `chrome.storage.local` are migrated automatically to synced storage. Temporary operation state is stored in `chrome.storage.session` and disappears when the Chrome session ends. Data is used only for interaction with the Facebook pages declared in `manifest.json`; the extension does not send it to developer servers.
+Selected authors are stored in `chrome.storage.local`, so the block list survives page refreshes in the same Chrome profile until authors are removed or processed. The keyword dictionary and `Refresh page` setting are stored in `chrome.storage.sync`, so they can sync between Chrome browsers where the user is signed in and has Chrome Sync enabled. On the first run after updating, older terms from `chrome.storage.local` are migrated automatically to synced storage. Temporary operation state is stored in `chrome.storage.session` and disappears when the Chrome session ends. Data is used only for interaction with the Facebook pages declared in `manifest.json`; the extension does not send it to developer servers.
 
 ## Install With `chrome://extensions`
 
@@ -46,7 +47,7 @@ The selection is kept only in the current tab memory and disappears when the pag
 3. Review the list in the bottom-right panel or by clicking the extension icon.
 4. Open **Keyword dictionary** to add terms separated by comma, semicolon, or Enter. Matching ignores case and diacritics.
 5. Click **Block** to begin immediately, or when the panel is minimized click the quick `B` button next to `+` to start the same action.
-6. Authors are processed sequentially in an unfocused helper window; the main tab keeps focus.
+6. Authors are processed sequentially in a minimized helper window; the main tab keeps focus.
 7. In **Settings**, enable or disable **Refresh page** to control automatic reload after successful blocking.
 8. While blocking is running, you can check more authors and click **Add selected to queue** or the minimized `B` button. Existing authors are not added twice.
 9. Watch the result in the panel. Profiles that appear to be unavailable are counted as `profiles unfound`; profiles that do not load in time are counted as `profiles timed out`. Both are removed from the active queue, while other errors remain listed with the affected author and the operation continues.

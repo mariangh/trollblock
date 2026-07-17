@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Comment Block Helper icon">
-  <rect width="128" height="128" rx="28" fill="#243447"/>
-  <circle cx="64" cy="64" r="42" fill="#c5221f"/>
-  <rect x="32" y="55" width="64" height="18" rx="9" fill="#fff"/>
-  <path d="M31 28h66c-7-8-19-13-33-13-14 0-26 5-33 13z" fill="#3b5368" opacity=".65"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="TrollBlock icon">
+  <rect width="128" height="128" rx="28" fill="#0f4c81"/>
+  <path d="M64 16l37 13v30c0 26-15 45-37 55-22-10-37-29-37-55V29l37-13z" fill="#ffffff" opacity=".96"/>
+  <path d="M64 25l27 10v24c0 20-10 34-27 43-17-9-27-23-27-43V35l27-10z" fill="#e8f1ff"/>
+  <path d="M43 45h42c6 0 11 5 11 11v15c0 6-5 11-11 11H62l-15 12v-12h-4c-6 0-11-5-11-11V56c0-6 5-11 11-11z" fill="#ffffff" stroke="#0f4c81" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M37 89l54-54" stroke="#d93025" stroke-width="13" stroke-linecap="round"/>
+  <path d="M37 89l54-54" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity=".85"/>
 </svg>

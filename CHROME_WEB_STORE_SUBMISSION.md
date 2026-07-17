@@ -21,9 +21,9 @@ Detailed description:
 ```text
 TrollBlock helps you review visible Facebook comment authors, select specific authors, highlight comments that match your own keyword dictionary, and start Facebook's own block flow for selected profiles.
 
-The extension adds a small selection control next to visible comment authors and shows the current selection in an in-page panel and extension popup. Users can remove authors from the panel before processing. Selected profiles are processed one by one in a helper window, while the main Facebook tab stays available. The panel marks the current author with a small animated hourglass and reports completion, unavailable profiles, timeouts, and errors.
+The extension adds a small selection control next to visible comment authors and shows the current selection in an in-page panel and extension popup. Users can remove authors from the panel before processing. Selected profiles are processed one by one in a minimized helper window, while the main Facebook tab stays available. The panel marks the current author with a small animated hourglass and reports completion, unavailable profiles, timeouts, and errors.
 
-The keyword dictionary and the `Refresh page` preference are stored with Chrome Sync when available. Selected authors and temporary blocking progress are used only for the current workflow.
+The selected-author block list is stored locally in Chrome so it survives page refreshes in the same browser profile. The keyword dictionary and the `Refresh page` preference are stored with Chrome Sync when available. Temporary blocking progress is used only for the current workflow.
 
 This extension does not use analytics, advertising, affiliate links, or developer-controlled servers. It does not sell or transmit data to the developer.
 
@@ -59,7 +59,7 @@ Used to identify the active Facebook tab, open or update the helper window tab f
 `storage`
 
 ```text
-Used to store the user's keyword dictionary and `Refresh page` preference with chrome.storage.sync, migrate older keyword data from local storage, and store temporary blocking progress with chrome.storage.session.
+Used to store the selected-author block list with chrome.storage.local, store the user's keyword dictionary and `Refresh page` preference with chrome.storage.sync, migrate older keyword data from local storage, and store temporary blocking progress with chrome.storage.session.
 ```
 
 Host access for `https://www.facebook.com/*`, `https://web.facebook.com/*`, and `https://m.facebook.com/*`
@@ -125,7 +125,7 @@ https://github.com/mariangh/trollblock/blob/main/PRIVACY_POLICY.md
 6. Optionally add a keyword in "Keyword dictionary" and reload or scroll comments to see matching authors selected and marked with the matched keyword badge.
 7. Expand "Settings" and toggle "Refresh page" to control whether the source Facebook tab reloads after successful blocking.
 8. Use "Block", or minimize the panel and use the small "B" button next to "+", to start the same blocking flow.
-9. The extension opens selected Facebook profiles in a helper window and uses Facebook's own Block/Confirm UI. Use a test account/profile if completing the block action is required.
+9. The extension opens selected Facebook profiles in a minimized helper window and uses Facebook's own Block/Confirm UI. Use a test account/profile if completing the block action is required.
 10. While processing, the panel marks the active author with a small animated hourglass.
 11. The panel reports successful blocks, unavailable profiles, timed-out profiles, and any other errors. The source Facebook tab reloads after successful blocking only when "Refresh page" is enabled.
 

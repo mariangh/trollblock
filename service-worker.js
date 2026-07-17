@@ -120,11 +120,22 @@ async function closeAutomationWindow(job) {
   delete job.temporaryTabId;
 }
 
+async function minimizeAutomationWindow(job) {
+  if (!job.automationWindowId) return;
+  try {
+    await chrome.windows.update(job.automationWindowId, { state: "minimized" });
+  } catch {
+    // If Chrome cannot minimize the helper window, keep processing normally.
+  }
+}
+
 async function openProfileWithoutFocus(job, profileUrl) {
   if (job.automationWindowId && job.temporaryTabId) {
     try {
       await chrome.windows.get(job.automationWindowId);
-      return await chrome.tabs.update(job.temporaryTabId, { url: profileUrl, active: true });
+      const tab = await chrome.tabs.update(job.temporaryTabId, { url: profileUrl, active: true });
+      await minimizeAutomationWindow(job);
+      return tab;
     } catch {
       delete job.automationWindowId;
       delete job.temporaryTabId;
@@ -144,6 +155,7 @@ async function openProfileWithoutFocus(job, profileUrl) {
   if (!tab?.id) throw new Error("The processing window could not be created.");
   job.automationWindowId = automationWindow.id;
   job.temporaryTabId = tab.id;
+  await minimizeAutomationWindow(job);
   return tab;
 }
 

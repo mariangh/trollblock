@@ -1,6 +1,6 @@
 # TrollBlock Privacy Policy
 
-Last updated: July 16, 2026
+Last updated: July 17, 2026
 
 TrollBlock is a Chrome extension that helps users select visible Facebook comment authors, highlight comments that match user-defined keywords, and start Facebook's own block flow for selected profiles.
 
@@ -23,13 +23,13 @@ The data is used only to provide the extension's stated functionality:
 - showing selection controls next to visible Facebook comment authors;
 - showing the selected author list in the page panel and extension popup;
 - highlighting comments that match the user's keyword dictionary;
-- opening selected Facebook profile URLs in a helper window and interacting with Facebook's own block flow at the user's request;
+- opening selected Facebook profile URLs in a minimized helper window and interacting with Facebook's own block flow at the user's request;
 - showing blocking progress and errors;
 - optionally reloading the source Facebook tab after successful blocking, according to the user's `Refresh page` preference.
 
 ## Storage and retention
 
-The selected author list is kept only in the memory of the current Facebook tab and is cleared when the page is reloaded or closed.
+The selected author list is stored with `chrome.storage.local`, so it can survive page reloads in the same Chrome profile. Selected authors are removed from storage when the user removes them from the list or when they are successfully processed, unavailable, or timed out during blocking.
 
 The keyword dictionary and `Refresh page` preference are stored with `chrome.storage.sync`, so Chrome may sync them through the user's Google account if Chrome Sync is enabled. Previous keyword data stored locally by older versions may be migrated to `chrome.storage.sync`.
 
@@ -43,7 +43,7 @@ The extension does not send data to developer-controlled servers.
 
 The extension does not use analytics, advertising, tracking pixels, affiliate links, or third-party data processors.
 
-When the user starts a blocking operation, Chrome loads the selected Facebook profile URLs in a helper window and the extension interacts with Facebook pages in the user's browser session. Those requests and page interactions are handled by Facebook according to Facebook's own terms and privacy practices.
+When the user starts a blocking operation, Chrome loads the selected Facebook profile URLs in a minimized helper window and the extension interacts with Facebook pages in the user's browser session. Those requests and page interactions are handled by Facebook according to Facebook's own terms and privacy practices.
 
 ## Remote code
 
@@ -51,7 +51,7 @@ The extension does not download or execute remotely hosted code. All extension l
 
 ## User control
 
-Users can remove selected authors by unchecking them on the Facebook page, using the remove control in the extension's in-page panel, or by reloading/closing the tab. Users can remove keyword dictionary entries and change the `Refresh page` preference from the extension's in-page panel. Users can uninstall the extension from Chrome at any time.
+Users can remove selected authors by unchecking them on the Facebook page or using the remove control in the extension's in-page panel. Users can remove keyword dictionary entries and change the `Refresh page` preference from the extension's in-page panel. Users can uninstall the extension from Chrome at any time.
 
 ## Contact
 
